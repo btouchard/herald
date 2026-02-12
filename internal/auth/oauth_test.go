@@ -16,10 +16,28 @@ import (
 	"github.com/kolapsis/herald/internal/config"
 )
 
+const testRedirectURI = "https://callback.test/cb"
+
+// testPKCE holds a verifier/challenge pair for tests.
+type testPKCE struct {
+	Verifier  string
+	Challenge string
+}
+
+// newTestPKCE returns a deterministic PKCE pair for test reproducibility.
+func newTestPKCE() testPKCE {
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	return testPKCE{
+		Verifier:  verifier,
+		Challenge: computeS256Challenge(verifier),
+	}
+}
+
 func newTestOAuth() *OAuthServer {
 	return NewOAuthServer(config.AuthConfig{
 		ClientID:     "test-client",
 		ClientSecret: "test-secret",
+		RedirectURIs: []string{testRedirectURI},
 	}, "https://herald.test")
 }
 
@@ -44,14 +62,17 @@ func TestHandleMetadata_ReturnsCorrectEndpoints(t *testing.T) {
 
 func TestOAuthFlow_AuthorizeAndToken(t *testing.T) {
 	oauth := newTestOAuth()
+	pkce := newTestPKCE()
 
 	// Step 1: GET /oauth/authorize
 	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {"https://callback.test/cb"},
-		"state":         {"xyz"},
-		"scope":         {"tasks"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {"https://callback.test/cb"},
+		"state":                 {"xyz"},
+		"scope":                 {"tasks"},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
 	}.Encode(), nil)
 	authW := httptest.NewRecorder()
 
@@ -75,6 +96,8 @@ func TestOAuthFlow_AuthorizeAndToken(t *testing.T) {
 		"code":          {code},
 		"client_id":     {"test-client"},
 		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
+		"code_verifier": {pkce.Verifier},
 	}
 	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
 	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -102,12 +125,15 @@ func TestOAuthFlow_AuthorizeAndToken(t *testing.T) {
 
 func TestOAuthFlow_RefreshToken(t *testing.T) {
 	oauth := newTestOAuth()
+	pkce := newTestPKCE()
 
 	// Get initial tokens
 	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {"https://callback.test/cb"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
 	}.Encode(), nil)
 	authW := httptest.NewRecorder()
 	oauth.HandleAuthorize(authW, authReq)
@@ -120,6 +146,8 @@ func TestOAuthFlow_RefreshToken(t *testing.T) {
 		"code":          {code},
 		"client_id":     {"test-client"},
 		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
+		"code_verifier": {pkce.Verifier},
 	}
 	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
 	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -175,7 +203,7 @@ func TestOAuthFlow_PKCE(t *testing.T) {
 	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
-		"redirect_uri":          {"https://callback.test/cb"},
+		"redirect_uri":          {testRedirectURI},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
 	}.Encode(), nil)
@@ -191,6 +219,7 @@ func TestOAuthFlow_PKCE(t *testing.T) {
 		"code":          {code},
 		"client_id":     {"test-client"},
 		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
 		"code_verifier": {codeVerifier},
 	}
 	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
@@ -210,7 +239,7 @@ func TestOAuthFlow_PKCE_WrongVerifier(t *testing.T) {
 	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
-		"redirect_uri":          {"https://callback.test/cb"},
+		"redirect_uri":          {testRedirectURI},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
 	}.Encode(), nil)
@@ -226,6 +255,7 @@ func TestOAuthFlow_PKCE_WrongVerifier(t *testing.T) {
 		"code":          {code},
 		"client_id":     {"test-client"},
 		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
 		"code_verifier": {"wrong-verifier"},
 	}
 	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
@@ -259,12 +289,15 @@ func TestOAuthFlow_RejectsInvalidClient(t *testing.T) {
 
 func TestOAuthFlow_RejectsCodeReuse(t *testing.T) {
 	oauth := newTestOAuth()
+	pkce := newTestPKCE()
 
 	// Get a code
 	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {"https://callback.test/cb"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
 	}.Encode(), nil)
 	authW := httptest.NewRecorder()
 	oauth.HandleAuthorize(authW, authReq)
@@ -278,6 +311,8 @@ func TestOAuthFlow_RejectsCodeReuse(t *testing.T) {
 		"code":          {code},
 		"client_id":     {"test-client"},
 		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
+		"code_verifier": {pkce.Verifier},
 	}
 	req1 := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
 	req1.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -291,6 +326,218 @@ func TestOAuthFlow_RejectsCodeReuse(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	oauth.HandleToken(w2, req2)
 	assert.Equal(t, http.StatusBadRequest, w2.Code)
+}
+
+func TestHandleAuthorize_WhenUnregisteredRedirectURI_Returns400(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type": {"code"},
+		"client_id":     {"test-client"},
+		"redirect_uri":  {"https://evil.com/steal"},
+		"state":         {"abc"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	oauth.HandleAuthorize(w, req)
+
+	// Must be HTTP 400 JSON, NOT a redirect to the evil URI
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Empty(t, w.Header().Get("Location"), "must not redirect to unregistered URI")
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &errResp))
+	assert.Equal(t, "invalid_request", errResp["error"])
+	assert.Contains(t, errResp["error_description"], "redirect_uri")
+}
+
+func TestHandleAuthorize_WhenEmptyRedirectURI_Returns400(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type": {"code"},
+		"client_id":     {"test-client"},
+		"state":         {"abc"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	oauth.HandleAuthorize(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Empty(t, w.Header().Get("Location"))
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &errResp))
+	assert.Equal(t, "invalid_request", errResp["error"])
+}
+
+func TestHandleAuthorize_WhenValidRedirectURI_Redirects(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+	pkce := newTestPKCE()
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"state":                 {"abc"},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	oauth.HandleAuthorize(w, req)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	location := w.Header().Get("Location")
+	require.NotEmpty(t, location)
+	assert.True(t, strings.HasPrefix(location, testRedirectURI+"?"))
+}
+
+func TestHandleToken_WhenRedirectURIMismatch_Fails(t *testing.T) {
+	t.Parallel()
+
+	oauth := NewOAuthServer(config.AuthConfig{
+		ClientID:     "test-client",
+		ClientSecret: "test-secret",
+		RedirectURIs: []string{testRedirectURI, "https://other.test/cb"},
+	}, "https://herald.test")
+	pkce := newTestPKCE()
+
+	// Authorize with one redirect_uri
+	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	authW := httptest.NewRecorder()
+	oauth.HandleAuthorize(authW, authReq)
+
+	redirectURL, _ := url.Parse(authW.Header().Get("Location"))
+	code := redirectURL.Query().Get("code")
+
+	// Exchange with a DIFFERENT redirect_uri
+	tokenForm := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"client_id":     {"test-client"},
+		"client_secret": {"test-secret"},
+		"redirect_uri":  {"https://other.test/cb"},
+		"code_verifier": {pkce.Verifier},
+	}
+	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
+	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokenW := httptest.NewRecorder()
+	oauth.HandleToken(tokenW, tokenReq)
+
+	assert.Equal(t, http.StatusBadRequest, tokenW.Code)
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(tokenW.Body.Bytes(), &errResp))
+	assert.Equal(t, "invalid_grant", errResp["error"])
+	assert.Contains(t, errResp["error_description"], "redirect_uri")
+}
+
+func TestHandleAuthorize_WhenMissingCodeChallenge_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type": {"code"},
+		"client_id":     {"test-client"},
+		"redirect_uri":  {testRedirectURI},
+		"state":         {"abc"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	oauth.HandleAuthorize(w, req)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	location := w.Header().Get("Location")
+	require.NotEmpty(t, location)
+
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_request", redirectURL.Query().Get("error"))
+	assert.Contains(t, redirectURL.Query().Get("error_description"), "code_challenge")
+}
+
+func TestHandleAuthorize_WhenWrongChallengeMethod_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+	pkce := newTestPKCE()
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"state":                 {"abc"},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"plain"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	oauth.HandleAuthorize(w, req)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	location := w.Header().Get("Location")
+	require.NotEmpty(t, location)
+
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_request", redirectURL.Query().Get("error"))
+	assert.Contains(t, redirectURL.Query().Get("error_description"), "S256")
+}
+
+func TestHandleToken_WhenMissingCodeVerifier_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	oauth := newTestOAuth()
+	pkce := newTestPKCE()
+
+	// Authorize with PKCE
+	authReq := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {testRedirectURI},
+		"code_challenge":        {pkce.Challenge},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	authW := httptest.NewRecorder()
+	oauth.HandleAuthorize(authW, authReq)
+
+	redirectURL, _ := url.Parse(authW.Header().Get("Location"))
+	code := redirectURL.Query().Get("code")
+	require.NotEmpty(t, code)
+
+	// Exchange WITHOUT code_verifier
+	tokenForm := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"client_id":     {"test-client"},
+		"client_secret": {"test-secret"},
+		"redirect_uri":  {testRedirectURI},
+	}
+	tokenReq := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(tokenForm.Encode()))
+	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokenW := httptest.NewRecorder()
+	oauth.HandleToken(tokenW, tokenReq)
+
+	assert.Equal(t, http.StatusBadRequest, tokenW.Code)
+
+	var errResp map[string]string
+	require.NoError(t, json.Unmarshal(tokenW.Body.Bytes(), &errResp))
+	assert.Equal(t, "invalid_grant", errResp["error"])
+	assert.Contains(t, errResp["error_description"], "code_verifier")
 }
 
 // computeS256Challenge generates a PKCE S256 challenge from a verifier.

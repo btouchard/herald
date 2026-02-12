@@ -22,6 +22,7 @@ type OAuthServer struct {
 	clientSecret string
 	publicURL    string
 	secret       []byte // HMAC signing key derived from client secret
+	redirectURIs []string
 
 	accessTTL  time.Duration
 	refreshTTL time.Duration
@@ -52,10 +53,21 @@ func NewOAuthServerWithStore(cfg config.AuthConfig, publicURL string, store Auth
 		clientSecret: cfg.ClientSecret,
 		publicURL:    strings.TrimRight(publicURL, "/"),
 		secret:       secret[:],
+		redirectURIs: cfg.RedirectURIs,
 		accessTTL:    accessTTL,
 		refreshTTL:   refreshTTL,
 		store:        store,
 	}
+}
+
+// isValidRedirectURI checks the URI against the configured allowlist (exact match).
+func (s *OAuthServer) isValidRedirectURI(uri string) bool {
+	for _, allowed := range s.redirectURIs {
+		if uri == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // Secret returns the HMAC signing key (for middleware use).
@@ -106,18 +118,39 @@ func (s *OAuthServer) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	state := q.Get("state")
 	scope := q.Get("scope")
 
+	// Validate redirect_uri BEFORE any redirect to prevent open redirect.
+	// If invalid, respond with HTTP 400 JSON — never redirect to an untrusted URI.
+	if redirectURI == "" || !s.isValidRedirectURI(redirectURI) {
+		slog.Warn("authorization request with invalid redirect_uri",
+			"redirect_uri", redirectURI,
+			"client_id", clientID)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":             "invalid_request",
+			"error_description": "redirect_uri is missing or not registered",
+		})
+		return
+	}
+
 	if responseType != "code" {
-		oauthError(w, redirectURI, state, "unsupported_response_type", "only 'code' is supported")
+		oauthError(w, r, redirectURI, state, "unsupported_response_type", "only 'code' is supported")
 		return
 	}
 
 	if clientID != s.clientID {
-		oauthError(w, redirectURI, state, "invalid_client", "unknown client_id")
+		oauthError(w, r, redirectURI, state, "invalid_client", "unknown client_id")
 		return
 	}
 
-	if codeChallengeMethod != "" && codeChallengeMethod != "S256" {
-		oauthError(w, redirectURI, state, "invalid_request", "only S256 code challenge method is supported")
+	// PKCE is mandatory per OAuth 2.1 — reject requests without code_challenge.
+	if codeChallenge == "" {
+		oauthError(w, r, redirectURI, state, "invalid_request", "code_challenge is required (PKCE)")
+		return
+	}
+
+	if codeChallengeMethod != "S256" {
+		oauthError(w, r, redirectURI, state, "invalid_request", "code_challenge_method must be S256")
 		return
 	}
 
@@ -170,6 +203,7 @@ func (s *OAuthServer) handleAuthorizationCode(w http.ResponseWriter, r *http.Req
 	code := r.FormValue("code")
 	clientID := r.FormValue("client_id")
 	clientSecret := r.FormValue("client_secret")
+	redirectURI := r.FormValue("redirect_uri")
 	codeVerifier := r.FormValue("code_verifier")
 
 	if clientID != s.clientID {
@@ -194,16 +228,20 @@ func (s *OAuthServer) handleAuthorizationCode(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// PKCE verification
-	if authCode.CodeChallenge != "" {
-		if codeVerifier == "" {
-			tokenError(w, http.StatusBadRequest, "invalid_grant", "code_verifier required")
-			return
-		}
-		if !verifyPKCE(codeVerifier, authCode.CodeChallenge) {
-			tokenError(w, http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
-			return
-		}
+	// Verify redirect_uri matches the one used during authorization
+	if redirectURI != authCode.RedirectURI {
+		tokenError(w, http.StatusBadRequest, "invalid_grant", "redirect_uri mismatch")
+		return
+	}
+
+	// PKCE verification — always enforced, never optional.
+	if codeVerifier == "" {
+		tokenError(w, http.StatusBadRequest, "invalid_grant", "code_verifier is required (PKCE)")
+		return
+	}
+	if !verifyPKCE(codeVerifier, authCode.CodeChallenge) {
+		tokenError(w, http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
+		return
 	}
 
 	s.issueTokenPair(w, clientID, authCode.Scope)
@@ -339,14 +377,14 @@ func buildRedirect(baseURI string, params map[string]string) string {
 	return u.String()
 }
 
-func oauthError(w http.ResponseWriter, redirectURI, state, errCode, desc string) {
+func oauthError(w http.ResponseWriter, r *http.Request, redirectURI, state, errCode, desc string) {
 	if redirectURI != "" {
 		u := buildRedirect(redirectURI, map[string]string{
 			"error":             errCode,
 			"error_description": desc,
 			"state":             state,
 		})
-		http.Redirect(w, nil, u, http.StatusFound)
+		http.Redirect(w, r, u, http.StatusFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
