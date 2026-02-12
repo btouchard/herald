@@ -58,9 +58,11 @@ type Task struct {
 	PID       int
 	GitBranch string
 
-	Output   string
-	Progress string
-	Error    string
+	output        []byte
+	maxOutputSize int
+	outputTotal   int
+	Progress      string
+	Error         string
 
 	CostUSD      float64
 	Turns        int
@@ -87,7 +89,8 @@ func GenerateID() string {
 }
 
 // New creates a new Task with the given parameters.
-func New(project, prompt string, priority Priority, timeoutMinutes int) *Task {
+// maxOutputSize limits the in-memory output buffer (0 = unlimited).
+func New(project, prompt string, priority Priority, timeoutMinutes, maxOutputSize int) *Task {
 	if priority == "" {
 		priority = PriorityNormal
 	}
@@ -102,6 +105,7 @@ func New(project, prompt string, priority Priority, timeoutMinutes int) *Task {
 		Status:         StatusPending,
 		Priority:       priority,
 		TimeoutMinutes: timeoutMinutes,
+		maxOutputSize:  maxOutputSize,
 		CreatedAt:      time.Now(),
 		done:           make(chan struct{}),
 	}
@@ -180,11 +184,35 @@ func (t *Task) SetTurns(n int) {
 	t.Turns = n
 }
 
-// AppendOutput appends text to the output buffer.
+// AppendOutput appends text to the bounded output buffer.
+// When maxOutputSize > 0, only the last maxOutputSize bytes are kept in memory.
 func (t *Task) AppendOutput(text string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.Output += text
+
+	data := []byte(text)
+	t.outputTotal += len(data)
+
+	t.output = append(t.output, data...)
+
+	if t.maxOutputSize > 0 && len(t.output) > t.maxOutputSize {
+		excess := len(t.output) - t.maxOutputSize
+		t.output = t.output[excess:]
+	}
+}
+
+// Output returns the current output buffer contents.
+func (t *Task) Output() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return string(t.output)
+}
+
+// OutputTotalBytes returns the total bytes written (before truncation).
+func (t *Task) OutputTotalBytes() int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.outputTotal
 }
 
 // Snapshot returns a read-consistent copy of key fields.
@@ -200,7 +228,7 @@ func (t *Task) Snapshot() TaskSnapshot {
 		Priority:       t.Priority,
 		SessionID:      t.SessionID,
 		GitBranch:      t.GitBranch,
-		Output:         t.Output,
+		Output:         string(t.output),
 		Progress:       t.Progress,
 		Error:          t.Error,
 		CostUSD:        t.CostUSD,

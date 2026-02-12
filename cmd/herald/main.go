@@ -177,6 +177,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 
 	// --- HTTP Router ---
 	r := chi.NewRouter()
+	r.Use(authmw.SecurityHeaders)
 
 	// Protected Resource Metadata (RFC 9728) — required for MCP OAuth discovery
 	r.Get("/.well-known/oauth-protected-resource", oauth.HandleProtectedResourceMetadata)

@@ -44,12 +44,14 @@ type DatabaseConfig struct {
 }
 
 type ExecutionConfig struct {
-	ClaudePath    string            `yaml:"claude_path"`
-	DefaultTimeout time.Duration   `yaml:"default_timeout"`
-	MaxTimeout    time.Duration     `yaml:"max_timeout"`
-	WorkDir       string            `yaml:"work_dir"`
-	MaxConcurrent int               `yaml:"max_concurrent"`
-	Env           map[string]string `yaml:"env"`
+	ClaudePath     string            `yaml:"claude_path"`
+	DefaultTimeout time.Duration    `yaml:"default_timeout"`
+	MaxTimeout     time.Duration    `yaml:"max_timeout"`
+	WorkDir        string            `yaml:"work_dir"`
+	MaxConcurrent  int               `yaml:"max_concurrent"`
+	MaxPromptSize  int               `yaml:"max_prompt_size"`
+	MaxOutputSize  int               `yaml:"max_output_size"`
+	Env            map[string]string `yaml:"env"`
 }
 
 type NotificationsConfig struct {
@@ -120,6 +122,8 @@ func Defaults() *Config {
 			MaxTimeout:     2 * time.Hour,
 			WorkDir:        "~/.config/herald/work",
 			MaxConcurrent:  3,
+			MaxPromptSize:  102400,  // 100KB
+			MaxOutputSize:  1048576, // 1MB
 			Env: map[string]string{
 				"CLAUDE_CODE_ENTRYPOINT":          "herald",
 				"CLAUDE_CODE_DISABLE_AUTO_UPDATE": "1",

@@ -32,3 +32,9 @@ jobs:
 
       - name: Run go vet
         run: go vet ./...
+
+      - name: Run golangci-lint security checks
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --disable-all -E gosec,gocritic

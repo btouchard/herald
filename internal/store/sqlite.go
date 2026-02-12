@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -17,7 +19,22 @@ type SQLiteStore struct {
 }
 
 // NewSQLiteStore opens (or creates) a SQLite database and runs migrations.
+// The database file is created with 0600 permissions and its parent directory with 0700.
 func NewSQLiteStore(path string) (*SQLiteStore, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("creating database directory: %w", err)
+	}
+
+	// Pre-create the file with restrictive permissions if it doesn't exist
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("creating database file: %w", err)
+		}
+		_ = f.Close()
+	}
+
 	dsn := path + "?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=ON"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

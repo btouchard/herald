@@ -68,7 +68,7 @@ func ReadFile(pm *project.Manager) server.ToolHandlerFunc {
 }
 
 // SafePath validates that the requested path stays within the project root.
-// This prevents path traversal attacks (e.g., ../../etc/passwd).
+// This prevents path traversal attacks (e.g., ../../etc/passwd) and symlink escapes.
 func SafePath(projectRoot, requestedPath string) (string, error) {
 	// Reject absolute paths immediately
 	if filepath.IsAbs(requestedPath) {
@@ -80,16 +80,37 @@ func SafePath(projectRoot, requestedPath string) (string, error) {
 		return "", fmt.Errorf("resolving project root: %w", err)
 	}
 
+	// Resolve symlinks in the project root itself
+	realRoot, err := filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolving project root symlinks: %w", err)
+	}
+
 	// Join and resolve to absolute path (resolves .., etc.)
-	absPath, err := filepath.Abs(filepath.Join(projectRoot, requestedPath))
+	absPath, err := filepath.Abs(filepath.Join(absRoot, requestedPath))
 	if err != nil {
 		return "", fmt.Errorf("resolving path: %w", err)
 	}
 
-	// Ensure the resolved path is within the project root
+	// First check: path must be within root before symlink resolution
 	if !strings.HasPrefix(absPath, absRoot+string(filepath.Separator)) && absPath != absRoot {
 		return "", fmt.Errorf("path traversal detected: %s resolves outside project root", requestedPath)
 	}
 
-	return absPath, nil
+	// Resolve symlinks on the final path to catch symlink escapes
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		// File might not exist yet — that's OK for Stat to catch later
+		if os.IsNotExist(err) {
+			return absPath, nil
+		}
+		return "", fmt.Errorf("resolving symlinks: %w", err)
+	}
+
+	// Second check: resolved real path must still be within the real root
+	if !strings.HasPrefix(realPath, realRoot+string(filepath.Separator)) && realPath != realRoot {
+		return "", fmt.Errorf("symlink escape detected: %s resolves outside project root", requestedPath)
+	}
+
+	return realPath, nil
 }

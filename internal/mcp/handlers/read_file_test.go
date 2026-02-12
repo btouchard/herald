@@ -58,6 +58,35 @@ func TestSafePath_RejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestSafePath_RejectsSymlinkEscape(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	// Create a symlink inside the project that points outside
+	outsideDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.txt"), []byte("secret"), 0644))
+	require.NoError(t, os.Symlink(outsideDir, filepath.Join(root, "escape")))
+
+	_, err := SafePath(root, "escape/secret.txt")
+	assert.Error(t, err, "symlink pointing outside project root should be rejected")
+	assert.Contains(t, err.Error(), "symlink escape detected")
+}
+
+func TestSafePath_AllowsSymlinkInsideProject(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	subdir := filepath.Join(root, "subdir")
+	require.NoError(t, os.MkdirAll(subdir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(subdir, "file.txt"), []byte("ok"), 0644))
+	// Symlink within the project
+	require.NoError(t, os.Symlink(subdir, filepath.Join(root, "link")))
+
+	result, err := SafePath(root, "link/file.txt")
+	require.NoError(t, err)
+	assert.True(t, filepath.IsAbs(result))
+}
+
 func TestSafePath_RejectsRootItself(t *testing.T) {
 	t.Parallel()
 

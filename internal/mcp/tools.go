@@ -47,7 +47,7 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 				mcp.Description("If true, Claude Code plans but doesn't execute changes"),
 			),
 		),
-		handlers.StartTask(deps.Tasks, deps.Projects, deps.Execution.DefaultTimeout, deps.Execution.MaxTimeout),
+		handlers.StartTask(deps.Tasks, deps.Projects, deps.Execution.DefaultTimeout, deps.Execution.MaxTimeout, deps.Execution.MaxPromptSize),
 	)
 
 	// check_task — Check task status

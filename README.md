@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white" alt="Go 1.26+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="AGPL-3.0 License"></a>
   <a href="https://github.com/kolapsis/herald/stargazers"><img src="https://img.shields.io/github/stars/kolapsis/herald?style=social" alt="GitHub Stars"></a>
 </p>
 
@@ -20,10 +20,12 @@
   <a href="#-security">Security</a> &middot;
   <a href="#-roadmap">Roadmap</a>
   <br />
-  :fr: <a href="README_FR.md">Version française</a>
+  <a href="README_FR.md">Version française</a>
 </p>
 
 ---
+
+<img src="/assets/herald-hero.svg">
 
 You're on the couch. On your phone. You open Claude Chat and type:
 
@@ -198,6 +200,8 @@ execution:
   max_timeout: 2h
   work_dir: "~/.config/herald/work"
   max_concurrent: 3
+  max_prompt_size: 102400    # 100KB
+  max_output_size: 1048576   # 1MB
   env:
     CLAUDE_CODE_ENTRYPOINT: "herald"
     CLAUDE_CODE_DISABLE_AUTO_UPDATE: "1"
@@ -391,7 +395,7 @@ Herald uses the same protocol Anthropic built for their own integrations. No rev
 ---
 
 <p align="center">
-  <a href="LICENSE"><strong>MIT License</strong></a> — Built by <a href="https://github.com/kolapsis"><strong>Kolapsis</strong></a>
+  <a href="LICENSE"><strong>AGPL-3.0 License</strong></a> — Built by <a href="https://github.com/kolapsis"><strong>Kolapsis</strong></a>
   <br /><br />
   If Herald saves you time, <a href="https://github.com/kolapsis/herald">leave a star</a>. It helps others find the project.
 </p>

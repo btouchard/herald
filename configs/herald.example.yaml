@@ -9,6 +9,8 @@ server:
   public_url: "https://herald.example.com"
   # Log level: debug, info, warn, error
   log_level: "info"
+  # Optional log file (in addition to stdout)
+  # log_file: "~/.config/herald/herald.log"
 
 auth:
   # OAuth 2.1 for Claude Chat Custom Connector
@@ -42,6 +44,10 @@ execution:
   work_dir: "~/.config/herald/work"
   # Global concurrent task limit
   max_concurrent: 3
+  # Maximum prompt size in bytes (protects against OOM)
+  max_prompt_size: 102400
+  # Maximum output buffer per task in bytes (protects against OOM)
+  max_output_size: 1048576
   env:
     CLAUDE_CODE_ENTRYPOINT: "herald"
     CLAUDE_CODE_DISABLE_AUTO_UPDATE: "1"

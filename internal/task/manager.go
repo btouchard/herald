@@ -18,6 +18,7 @@ type Manager struct {
 	executor      executor.Executor
 	maxConcurrent int
 	maxTimeout    time.Duration
+	maxOutputSize int
 	cancelFuncs   map[string]context.CancelFunc
 }
 
@@ -34,13 +35,19 @@ func NewManager(exec executor.Executor, maxConcurrent int, maxTimeout time.Durat
 		executor:      exec,
 		maxConcurrent: maxConcurrent,
 		maxTimeout:    maxTimeout,
+		maxOutputSize: 1048576, // 1MB default
 		cancelFuncs:   make(map[string]context.CancelFunc),
 	}
 }
 
+// SetMaxOutputSize sets the maximum output buffer size per task.
+func (m *Manager) SetMaxOutputSize(size int) {
+	m.maxOutputSize = size
+}
+
 // Create makes a new task and stores it.
 func (m *Manager) Create(project, prompt string, priority Priority, timeoutMinutes int) *Task {
-	t := New(project, prompt, priority, timeoutMinutes)
+	t := New(project, prompt, priority, timeoutMinutes, m.maxOutputSize)
 
 	m.mu.Lock()
 	m.tasks[t.ID] = t

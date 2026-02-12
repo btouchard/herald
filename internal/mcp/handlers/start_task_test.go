@@ -45,7 +45,7 @@ func TestStartTask_WhenNormalTimeout_AcceptsIt(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour)
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt":          "do something",
@@ -66,7 +66,7 @@ func TestStartTask_WhenTimeoutExceedsMax_ClampsToMax(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour) // max = 120 min
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400) // max = 120 min
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt":          "do something",
@@ -98,7 +98,7 @@ func TestStartTask_WhenTimeoutZeroOrNegative_UsesDefault(t *testing.T) {
 			t.Parallel()
 
 			tm, pm := newTestDeps()
-			handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour)
+			handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
 
 			result, err := handler(context.Background(), makeReq(map[string]any{
 				"prompt":          "do something",
@@ -120,7 +120,7 @@ func TestStartTask_WhenNoTimeoutProvided_UsesDefault(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour)
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt": "do something",
@@ -133,4 +133,19 @@ func TestStartTask_WhenNoTimeoutProvided_UsesDefault(t *testing.T) {
 	tasks := tm.List(task.Filter{})
 	require.Len(t, tasks, 1)
 	assert.Equal(t, 30, tasks[0].TimeoutMinutes)
+}
+
+func TestStartTask_WhenPromptTooLarge_RejectsWithError(t *testing.T) {
+	t.Parallel()
+
+	tm, pm := newTestDeps()
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 100) // max 100 bytes
+
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"prompt": string(make([]byte, 200)), // 200 bytes > 100 limit
+	}))
+	require.NoError(t, err)
+
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "prompt too large")
 }

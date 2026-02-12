@@ -151,3 +151,120 @@ func TestExpandHome_LeavesAbsolutePathsUnchanged(t *testing.T) {
 	result := ExpandHome("/absolute/path")
 	assert.Equal(t, "/absolute/path", result)
 }
+
+func TestLoadFromFile_InvalidYAML_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte("{{invalid yaml:::"), 0644))
+
+	_, err := LoadFromFile(tmpFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing YAML")
+}
+
+func TestLoadFromFile_RejectsMaxConcurrentZero(t *testing.T) {
+	t.Parallel()
+
+	content := `
+execution:
+  max_concurrent: 0
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
+
+	_, err := LoadFromFile(tmpFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "max_concurrent")
+}
+
+func TestLoadFromFile_RejectsPortZero(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server:
+  port: 0
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
+
+	_, err := LoadFromFile(tmpFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "port")
+}
+
+func TestLoadFromFile_ParsesAllAuthFields(t *testing.T) {
+	t.Parallel()
+
+	content := `
+auth:
+  client_id: "test-client"
+  client_secret: "test-secret"
+  admin_password_hash: "hash123"
+  access_token_ttl: 2h
+  refresh_token_ttl: 48h
+  redirect_uris:
+    - "https://example.com/callback"
+    - "https://other.com/callback"
+  api_tokens:
+    - name: "local"
+      token_hash: "token-hash-123"
+      scope: "*"
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test-client", cfg.Auth.ClientID)
+	assert.Equal(t, "test-secret", cfg.Auth.ClientSecret)
+	assert.Equal(t, "hash123", cfg.Auth.AdminPasswordHash)
+	assert.Equal(t, 2*time.Hour, cfg.Auth.AccessTokenTTL)
+	assert.Equal(t, 48*time.Hour, cfg.Auth.RefreshTokenTTL)
+	assert.Equal(t, []string{"https://example.com/callback", "https://other.com/callback"}, cfg.Auth.RedirectURIs)
+	require.Len(t, cfg.Auth.APITokens, 1)
+	assert.Equal(t, "local", cfg.Auth.APITokens[0].Name)
+}
+
+func TestLoadFromFile_ParsesNewSecurityFields(t *testing.T) {
+	t.Parallel()
+
+	content := `
+execution:
+  max_prompt_size: 50000
+  max_output_size: 2097152
+
+rate_limit:
+  requests_per_minute: 120
+  burst: 20
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, 50000, cfg.Execution.MaxPromptSize)
+	assert.Equal(t, 2097152, cfg.Execution.MaxOutputSize)
+	assert.Equal(t, 120, cfg.RateLimit.RequestsPerMinute)
+	assert.Equal(t, 20, cfg.RateLimit.Burst)
+}
+
+func TestLoadFromFile_PartialOverride_KeepsDefaults(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server:
+  port: 9999
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, 9999, cfg.Server.Port)
+	assert.Equal(t, "127.0.0.1", cfg.Server.Host, "default host should be preserved")
+	assert.Equal(t, 3, cfg.Execution.MaxConcurrent, "default max_concurrent should be preserved")
+}

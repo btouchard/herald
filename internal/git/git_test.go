@@ -134,6 +134,103 @@ func TestOps_Log(t *testing.T) {
 	assert.Contains(t, log, "initial commit")
 }
 
+func TestOps_HasCommits_WhenRepo_HasCommits(t *testing.T) {
+	t.Parallel()
+	repo := initTestRepo(t)
+	ops := NewOps(repo)
+
+	assert.True(t, ops.HasCommits(context.Background()))
+}
+
+func TestOps_HasCommits_WhenRepo_HasNoCommits(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+
+	ops := NewOps(dir)
+	assert.False(t, ops.HasCommits(context.Background()))
+}
+
+func TestOps_Diff_WhenUncommittedChanges(t *testing.T) {
+	t.Parallel()
+	repo := initTestRepo(t)
+	ops := NewOps(repo)
+	ctx := context.Background()
+
+	// Create and commit a file
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "file.txt"), []byte("initial"), 0644))
+	cmd := exec.Command("git", "add", "file.txt")
+	cmd.Dir = repo
+	require.NoError(t, cmd.Run())
+	cmd = exec.Command("git", "commit", "-m", "add file")
+	cmd.Dir = repo
+	require.NoError(t, cmd.Run())
+
+	// Modify the file (uncommitted)
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "file.txt"), []byte("modified"), 0644))
+
+	diff, err := ops.Diff(ctx, "HEAD", "")
+	require.NoError(t, err)
+	assert.Contains(t, diff, "file.txt")
+	assert.Contains(t, diff, "modified")
+}
+
+func TestOps_DiffStat(t *testing.T) {
+	t.Parallel()
+	repo := initTestRepo(t)
+	ops := NewOps(repo)
+	ctx := context.Background()
+
+	defaultBranch, err := ops.CurrentBranch(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, ops.CreateBranch(ctx, "stats-test"))
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "stat.txt"), []byte("data"), 0644))
+	cmd := exec.Command("git", "add", "stat.txt")
+	cmd.Dir = repo
+	require.NoError(t, cmd.Run())
+	cmd = exec.Command("git", "commit", "-m", "add stat file")
+	cmd.Dir = repo
+	require.NoError(t, cmd.Run())
+
+	stat, err := ops.DiffStat(ctx, defaultBranch, "stats-test")
+	require.NoError(t, err)
+	assert.Contains(t, stat, "stat.txt")
+}
+
+func TestOps_CreateBranch_WhenExistingBranches(t *testing.T) {
+	t.Parallel()
+	repo := initTestRepo(t)
+	ops := NewOps(repo)
+	ctx := context.Background()
+
+	defaultBranch, err := ops.CurrentBranch(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, ops.CreateBranch(ctx, "branch-1"))
+	require.NoError(t, ops.Checkout(ctx, defaultBranch))
+	require.NoError(t, ops.CreateBranch(ctx, "branch-2"))
+
+	branch, err := ops.CurrentBranch(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "branch-2", branch)
+}
+
+func TestOps_CreateBranch_WhenAlreadyExists_ReturnsError(t *testing.T) {
+	t.Parallel()
+	repo := initTestRepo(t)
+	ops := NewOps(repo)
+	ctx := context.Background()
+
+	require.NoError(t, ops.CreateBranch(ctx, "existing"))
+	require.NoError(t, ops.Checkout(ctx, "main"))
+
+	err := ops.CreateBranch(ctx, "existing")
+	assert.Error(t, err)
+}
+
 func TestOps_StashAndPop(t *testing.T) {
 	t.Parallel()
 	repo := initTestRepo(t)

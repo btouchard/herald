@@ -1,0 +1,37 @@
+version: 2
+
+builds:
+  - id: herald
+    main: ./cmd/herald
+    binary: herald
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: herald
+    format: tar.gz
+    name_template: "herald_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  draft: true
+  prerelease: auto

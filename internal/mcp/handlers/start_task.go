@@ -17,7 +17,8 @@ import (
 
 // StartTask returns a handler that creates and starts a Claude Code task.
 // defaultTimeout and maxTimeout are expressed as time.Duration.
-func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout time.Duration) server.ToolHandlerFunc {
+// maxPromptSize limits prompt length in bytes (0 = no limit).
+func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout time.Duration, maxPromptSize int) server.ToolHandlerFunc {
 	defaultMinutes := int(defaultTimeout.Minutes())
 	if defaultMinutes <= 0 {
 		defaultMinutes = 30
@@ -33,6 +34,10 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 		prompt, _ := args["prompt"].(string)
 		if prompt == "" {
 			return mcp.NewToolResultError("prompt is required"), nil
+		}
+
+		if maxPromptSize > 0 && len(prompt) > maxPromptSize {
+			return mcp.NewToolResultError(fmt.Sprintf("prompt too large: %d bytes (max %d)", len(prompt), maxPromptSize)), nil
 		}
 
 		projectName, _ := args["project"].(string)

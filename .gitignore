@@ -1,6 +1,6 @@
 # Binaries
+/herald
 bin/
-herald
 *.exe
 
 # Database
@@ -9,8 +9,18 @@ herald
 *.db-wal
 *.db-shm
 
+# Config with secrets
+herald.yaml
+!configs/herald.example.yaml
+
+# Environment
+.env
+
 # Work directory
 work/
+
+# Go
+vendor/
 
 # IDE
 .idea/
@@ -32,6 +42,10 @@ coverage.out
 coverage.html
 
 # Spec & planning docs (not shipped)
-herald-ceo-plan.md
-herald-cto-spec.md
+/.claude/
+docs/internal/
 PLAN.md
+/ACTION_PLAN.md
+/E2E_TEST_PLAN.md
+/HERALD_RUN_SPEC.md
+/internal/store/:memory:

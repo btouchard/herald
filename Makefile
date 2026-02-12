@@ -1,4 +1,4 @@
-.PHONY: build build-debug test test-unit test-integration test-leaks lint fix run dev clean
+.PHONY: build build-debug test test-unit test-integration test-leaks test-cover lint fix run dev clean install release
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -s -w -X main.version=$(VERSION)
@@ -21,6 +21,11 @@ test-integration:
 test-leaks:
 	GOEXPERIMENT=goroutineleakprofile go test ./tests/integration/... -v -run TestNoGoroutineLeak
 
+test-cover:
+	go test ./... -race -count=1 -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+
 lint:
 	golangci-lint run ./...
 
@@ -34,4 +39,10 @@ dev:
 	air -c .air.toml
 
 clean:
-	rm -rf bin/ tmp/
+	rm -rf bin/ tmp/ coverage.out coverage.html
+
+install: build
+	cp bin/herald $(GOPATH)/bin/herald 2>/dev/null || cp bin/herald /usr/local/bin/herald
+
+release:
+	goreleaser release --snapshot --clean
