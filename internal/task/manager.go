@@ -108,8 +108,31 @@ type Filter struct {
 }
 
 // Start begins executing a task asynchronously.
+// Returns an error if the global or per-project concurrency limit is reached.
 // Uses background context so tasks survive after the MCP request completes.
-func (m *Manager) Start(_ context.Context, t *Task, req executor.Request) {
+func (m *Manager) Start(_ context.Context, t *Task, req executor.Request, maxPerProject int) error {
+	m.mu.RLock()
+	globalRunning := 0
+	projectRunning := 0
+	for _, existing := range m.tasks {
+		existing.mu.RLock()
+		if existing.Status == StatusRunning {
+			globalRunning++
+			if existing.Project == t.Project {
+				projectRunning++
+			}
+		}
+		existing.mu.RUnlock()
+	}
+	m.mu.RUnlock()
+
+	if globalRunning >= m.maxConcurrent {
+		return fmt.Errorf("global concurrency limit reached (%d/%d)", globalRunning, m.maxConcurrent)
+	}
+	if maxPerProject > 0 && projectRunning >= maxPerProject {
+		return fmt.Errorf("project %q concurrency limit reached (%d/%d)", t.Project, projectRunning, maxPerProject)
+	}
+
 	timeout := time.Duration(t.TimeoutMinutes) * time.Minute
 	taskCtx, cancel := context.WithTimeout(context.Background(), timeout)
 
@@ -120,6 +143,7 @@ func (m *Manager) Start(_ context.Context, t *Task, req executor.Request) {
 	t.SetStatus(StatusRunning)
 
 	go m.run(taskCtx, cancel, t, req)
+	return nil
 }
 
 func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, t *Task, req executor.Request) {

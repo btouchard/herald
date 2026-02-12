@@ -60,8 +60,10 @@ func StartTask(tm *task.Manager, pm *project.Manager) server.ToolHandlerFunc {
 			DryRun:         dryRun,
 		}
 
-		// Start execution
-		tm.Start(ctx, t, execReq)
+		// Start execution (enforces global + per-project concurrency limits)
+		if err := tm.Start(ctx, t, execReq, proj.MaxConcurrentTasks); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Cannot start task: %s", err)), nil
+		}
 
 		// Build response
 		var b strings.Builder

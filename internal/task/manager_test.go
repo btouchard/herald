@@ -95,11 +95,12 @@ func TestManager_StartAndComplete(t *testing.T) {
 	ctx := context.Background()
 
 	task := m.Create("proj", "fix bug", PriorityNormal, 30)
-	m.Start(ctx, task, executor.Request{
+	err := m.Start(ctx, task, executor.Request{
 		TaskID:      task.ID,
 		Prompt:      "fix bug",
 		ProjectPath: "/tmp",
-	})
+	}, 0)
+	require.NoError(t, err)
 
 	select {
 	case <-task.Done():
@@ -126,10 +127,11 @@ func TestManager_StartAndFail(t *testing.T) {
 	ctx := context.Background()
 
 	task := m.Create("proj", "bad task", PriorityNormal, 30)
-	m.Start(ctx, task, executor.Request{
+	err := m.Start(ctx, task, executor.Request{
 		TaskID: task.ID,
 		Prompt: "bad task",
-	})
+	}, 0)
+	require.NoError(t, err)
 
 	<-task.Done()
 
@@ -148,13 +150,14 @@ func TestManager_Cancel(t *testing.T) {
 	ctx := context.Background()
 
 	task := m.Create("proj", "long task", PriorityNormal, 30)
-	m.Start(ctx, task, executor.Request{
+	err := m.Start(ctx, task, executor.Request{
 		TaskID: task.ID,
 		Prompt: "long task",
-	})
+	}, 0)
+	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
-	err := m.Cancel(task.ID)
+	err = m.Cancel(task.ID)
 	require.NoError(t, err)
 
 	select {
@@ -175,7 +178,7 @@ func TestManager_Cancel_ErrorOnTerminalTask(t *testing.T) {
 	ctx := context.Background()
 
 	task := m.Create("proj", "quick", PriorityNormal, 30)
-	m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "quick"})
+	require.NoError(t, m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "quick"}, 0))
 	<-task.Done()
 
 	err := m.Cancel(task.ID)
@@ -234,7 +237,7 @@ func TestManager_RunningCount(t *testing.T) {
 	assert.Equal(t, 0, m.RunningCount())
 
 	task := m.Create("proj", "long", PriorityNormal, 30)
-	m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "long"})
+	require.NoError(t, m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "long"}, 0))
 
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, 1, m.RunningCount())
@@ -243,4 +246,88 @@ func TestManager_RunningCount(t *testing.T) {
 	<-task.Done()
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, 0, m.RunningCount())
+}
+
+func TestManager_Start_WhenGlobalLimitReached_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockExecutor{delay: 10 * time.Second}
+	m := NewManager(mock, 2) // global limit = 2
+	ctx := context.Background()
+
+	// Start 2 tasks (at limit)
+	t1 := m.Create("proj", "task1", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 0))
+
+	t2 := m.Create("proj", "task2", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 0))
+
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 2, m.RunningCount())
+
+	// Third task should be rejected
+	t3 := m.Create("proj", "task3", PriorityNormal, 30)
+	err := m.Start(ctx, t3, executor.Request{TaskID: t3.ID, Prompt: "task3"}, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "global concurrency limit reached")
+	assert.Contains(t, err.Error(), "2/2")
+
+	// Cleanup
+	_ = m.Cancel(t1.ID)
+	_ = m.Cancel(t2.ID)
+	<-t1.Done()
+	<-t2.Done()
+}
+
+func TestManager_Start_WhenProjectLimitReached_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockExecutor{delay: 10 * time.Second}
+	m := NewManager(mock, 10) // high global limit
+	ctx := context.Background()
+
+	// Start 1 task on "alpha" (per-project limit will be 1)
+	t1 := m.Create("alpha", "task1", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 1))
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Second task on same project should be rejected
+	t2 := m.Create("alpha", "task2", PriorityNormal, 30)
+	err := m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "project")
+	assert.Contains(t, err.Error(), "alpha")
+
+	// Different project should still work
+	t3 := m.Create("beta", "task3", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t3, executor.Request{TaskID: t3.ID, Prompt: "task3"}, 1))
+
+	// Cleanup
+	_ = m.Cancel(t1.ID)
+	_ = m.Cancel(t3.ID)
+	<-t1.Done()
+	<-t3.Done()
+}
+
+func TestManager_Start_WhenTaskCompletes_FreesSlot(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockExecutor{delay: 50 * time.Millisecond}
+	m := NewManager(mock, 1) // global limit = 1
+	ctx := context.Background()
+
+	// Start and wait for completion
+	t1 := m.Create("proj", "task1", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 0))
+	<-t1.Done()
+
+	assert.Equal(t, 0, m.RunningCount())
+
+	// Should be able to start another task now
+	t2 := m.Create("proj", "task2", PriorityNormal, 30)
+	require.NoError(t, m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 0))
+	<-t2.Done()
+
+	assert.Equal(t, StatusCompleted, t2.Snapshot().Status)
 }
