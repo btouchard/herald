@@ -130,7 +130,7 @@ func Defaults() *Config {
 			},
 		},
 		RateLimit: RateLimitConfig{
-			RequestsPerMinute: 60,
+			RequestsPerMinute: 200,
 			Burst:             100,
 		},
 		Dashboard: DashboardConfig{

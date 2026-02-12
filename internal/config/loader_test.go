@@ -21,7 +21,7 @@ func TestDefaults_SetsExpectedValues(t *testing.T) {
 	assert.Equal(t, "claude", cfg.Execution.ClaudePath)
 	assert.Equal(t, 30*time.Minute, cfg.Execution.DefaultTimeout)
 	assert.Equal(t, 3, cfg.Execution.MaxConcurrent)
-	assert.Equal(t, 60, cfg.RateLimit.RequestsPerMinute)
+	assert.Equal(t, 200, cfg.RateLimit.RequestsPerMinute)
 	assert.True(t, cfg.Dashboard.Enabled)
 	assert.Equal(t, time.Hour, cfg.Auth.AccessTokenTTL)
 	assert.Equal(t, 30*24*time.Hour, cfg.Auth.RefreshTokenTTL)

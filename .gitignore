@@ -46,6 +46,6 @@ coverage.html
 docs/internal/
 PLAN.md
 /ACTION_PLAN.md
-/E2E_TEST_PLAN.md
+/docs/internal/E2E_TEST_PLAN.md
 /HERALD_RUN_SPEC.md
 /internal/store/:memory:
