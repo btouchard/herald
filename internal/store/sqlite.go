@@ -305,6 +305,29 @@ func (s *SQLiteStore) ConsumeAuthCode(codeHash string) (*AuthCodeRecord, error) 
 	return &c, nil
 }
 
+// --- Analytics ---
+
+func (s *SQLiteStore) GetAverageTaskDuration(project string) (time.Duration, int, error) {
+	var avgSeconds sql.NullFloat64
+	var count int
+
+	err := s.db.QueryRow(`SELECT AVG(julianday(completed_at) - julianday(started_at)) * 86400, COUNT(*)
+		FROM tasks
+		WHERE project = ? AND status = 'completed'
+		AND started_at IS NOT NULL AND started_at != ''
+		AND completed_at IS NOT NULL AND completed_at != ''`,
+		project).Scan(&avgSeconds, &count)
+	if err != nil {
+		return 0, 0, fmt.Errorf("querying average task duration: %w", err)
+	}
+
+	if !avgSeconds.Valid || count == 0 {
+		return 0, 0, nil
+	}
+
+	return time.Duration(avgSeconds.Float64 * float64(time.Second)), count, nil
+}
+
 // --- Maintenance ---
 
 func (s *SQLiteStore) Cleanup() error {
