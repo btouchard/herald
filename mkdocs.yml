@@ -1,0 +1,77 @@
+site_name: Herald
+site_description: Bridge Claude Chat to Claude Code. Command your workstation from your phone.
+site_url: https://kolapsis.github.io/herald
+repo_url: https://github.com/kolapsis/herald
+repo_name: kolapsis/herald
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Configuration: getting-started/configuration.md
+    - Connecting: getting-started/connecting.md
+  - Guide:
+    - Workflow: guide/workflow.md
+    - Tools Reference: guide/tools-reference.md
+    - Multi-Project: guide/multi-project.md
+    - Notifications: guide/notifications.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Security: architecture/security.md
+  - Deployment:
+    - Traefik: deployment/traefik.md
+    - Docker: deployment/docker.md
+    - Bare Metal: deployment/bare-metal.md
+  - Building Herald:
+    - Self-Hosting Session: building-herald/self-hosting-session.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kolapsis/herald
+
+copyright: Copyright &copy; 2026 Kolapsis — MIT License
