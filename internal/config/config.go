@@ -45,8 +45,8 @@ type DatabaseConfig struct {
 
 type ExecutionConfig struct {
 	ClaudePath     string            `yaml:"claude_path"`
-	DefaultTimeout time.Duration    `yaml:"default_timeout"`
-	MaxTimeout     time.Duration    `yaml:"max_timeout"`
+	DefaultTimeout time.Duration     `yaml:"default_timeout"`
+	MaxTimeout     time.Duration     `yaml:"max_timeout"`
 	WorkDir        string            `yaml:"work_dir"`
 	MaxConcurrent  int               `yaml:"max_concurrent"`
 	MaxPromptSize  int               `yaml:"max_prompt_size"`
@@ -108,8 +108,8 @@ func Defaults() *Config {
 			LogLevel: "info",
 		},
 		Auth: AuthConfig{
-			ClientID:       "herald-claude-chat",
-			AccessTokenTTL: 1 * time.Hour,
+			ClientID:        "herald-claude-chat",
+			AccessTokenTTL:  1 * time.Hour,
 			RefreshTokenTTL: 30 * 24 * time.Hour,
 		},
 		Database: DatabaseConfig{
@@ -131,7 +131,7 @@ func Defaults() *Config {
 		},
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: 60,
-			Burst:             10,
+			Burst:             100,
 		},
 		Dashboard: DashboardConfig{
 			Enabled: true,

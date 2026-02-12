@@ -26,16 +26,12 @@ func BearerAuth(oauth *auth.OAuthServer, resourceMetadataURL string) func(http.H
 			}
 
 			token := parts[1]
-			claims, err := oauth.ValidateAccessToken(token)
+			_, err := oauth.ValidateAccessToken(token)
 			if err != nil {
 				slog.Debug("token validation failed", "error", err)
 				invalidToken(w, "invalid or expired token")
 				return
 			}
-
-			slog.Debug("request authenticated",
-				"client_id", claims.ClientID,
-				"scope", claims.Scope)
 
 			next.ServeHTTP(w, r)
 		})
