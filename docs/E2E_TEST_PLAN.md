@@ -311,7 +311,7 @@ curl -s -X POST https://herald.home.kolapsis.com/oauth/token \
 
 > Tous les appels MCP nécessitent un Bearer token valide.
 > Variable : `TOKEN` = access_token obtenu via T-AUTH-02.
->
+> 
 > **Important :** Le protocole MCP Streamable HTTP utilise des sessions. L'appel `initialize`
 > retourne un header `Mcp-Session-Id` qui doit être transmis dans toutes les requêtes suivantes.
 

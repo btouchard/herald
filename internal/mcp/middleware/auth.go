@@ -9,18 +9,19 @@ import (
 )
 
 // BearerAuth returns middleware that validates OAuth 2.1 Bearer tokens.
-func BearerAuth(oauth *auth.OAuthServer) func(http.Handler) http.Handler {
+// The resourceMetadataURL is included in the WWW-Authenticate header per RFC 9728.
+func BearerAuth(oauth *auth.OAuthServer, resourceMetadataURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
 			if header == "" {
-				unauthorized(w, "missing Authorization header")
+				challengeAuth(w, resourceMetadataURL, "missing Authorization header")
 				return
 			}
 
 			parts := strings.SplitN(header, " ", 2)
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-				unauthorized(w, "invalid Authorization header format")
+				challengeAuth(w, resourceMetadataURL, "invalid Authorization header format")
 				return
 			}
 
@@ -28,7 +29,7 @@ func BearerAuth(oauth *auth.OAuthServer) func(http.Handler) http.Handler {
 			claims, err := oauth.ValidateAccessToken(token)
 			if err != nil {
 				slog.Debug("token validation failed", "error", err)
-				unauthorized(w, "invalid or expired token")
+				invalidToken(w, "invalid or expired token")
 				return
 			}
 
@@ -41,7 +42,15 @@ func BearerAuth(oauth *auth.OAuthServer) func(http.Handler) http.Handler {
 	}
 }
 
-func unauthorized(w http.ResponseWriter, msg string) {
+// challengeAuth sends a 401 with a Bearer challenge for unauthenticated requests.
+// Includes resource_metadata URL per MCP spec (RFC 9728) so clients can discover the auth server.
+func challengeAuth(w http.ResponseWriter, resourceMetadataURL, msg string) {
+	w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+resourceMetadataURL+`"`)
+	http.Error(w, msg, http.StatusUnauthorized)
+}
+
+// invalidToken sends a 401 for requests with an invalid/expired Bearer token.
+func invalidToken(w http.ResponseWriter, msg string) {
 	w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 	http.Error(w, msg, http.StatusUnauthorized)
 }

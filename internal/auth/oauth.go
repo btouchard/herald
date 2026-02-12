@@ -67,13 +67,26 @@ func (s *OAuthServer) Secret() []byte {
 // GET /.well-known/oauth-authorization-server
 func (s *OAuthServer) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 	metadata := map[string]interface{}{
-		"issuer":                            s.publicURL,
-		"authorization_endpoint":            s.publicURL + "/oauth/authorize",
-		"token_endpoint":                    s.publicURL + "/oauth/token",
-		"response_types_supported":          []string{"code"},
-		"grant_types_supported":             []string{"authorization_code", "refresh_token"},
-		"code_challenge_methods_supported":  []string{"S256"},
+		"issuer":                                s.publicURL,
+		"authorization_endpoint":                s.publicURL + "/oauth/authorize",
+		"token_endpoint":                        s.publicURL + "/oauth/token",
+		"response_types_supported":              []string{"code"},
+		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
+		"code_challenge_methods_supported":      []string{"S256"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_post"},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(metadata)
+}
+
+// HandleProtectedResourceMetadata serves the Protected Resource Metadata (RFC 9728).
+// GET /.well-known/oauth-protected-resource
+func (s *OAuthServer) HandleProtectedResourceMetadata(w http.ResponseWriter, r *http.Request) {
+	metadata := map[string]interface{}{
+		"resource":                s.publicURL + "/mcp",
+		"authorization_servers":   []string{s.publicURL},
+		"bearer_methods_supported": []string{"header"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
