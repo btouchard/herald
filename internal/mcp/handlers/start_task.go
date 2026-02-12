@@ -79,6 +79,11 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 		t.DryRun = dryRun
 		t.AllowedTools = proj.AllowedTools
 
+		// Capture MCP session for push notifications
+		if sess := server.ClientSessionFromContext(ctx); sess != nil {
+			t.MCPSessionID = sess.SessionID()
+		}
+
 		// Build executor request
 		execReq := executor.Request{
 			TaskID:         t.ID,

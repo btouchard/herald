@@ -10,6 +10,18 @@ import (
 	"github.com/kolapsis/herald/internal/executor"
 )
 
+// TaskEvent represents a task state change for notification dispatch.
+type TaskEvent struct {
+	Type         string // "task.started", "task.progress", "task.completed", "task.failed", "task.cancelled"
+	TaskID       string
+	Project      string
+	Message      string
+	MCPSessionID string
+}
+
+// NotifyFunc is called when a task lifecycle event occurs.
+type NotifyFunc func(TaskEvent)
+
 // Manager handles task lifecycle: creation, execution, cancellation.
 type Manager struct {
 	mu    sync.RWMutex
@@ -20,6 +32,7 @@ type Manager struct {
 	maxTimeout    time.Duration
 	maxOutputSize int
 	cancelFuncs   map[string]context.CancelFunc
+	onNotify      NotifyFunc
 }
 
 // NewManager creates a new task Manager.
@@ -43,6 +56,11 @@ func NewManager(exec executor.Executor, maxConcurrent int, maxTimeout time.Durat
 // SetMaxOutputSize sets the maximum output buffer size per task.
 func (m *Manager) SetMaxOutputSize(size int) {
 	m.maxOutputSize = size
+}
+
+// SetNotifyFunc sets the callback for task lifecycle events.
+func (m *Manager) SetNotifyFunc(fn NotifyFunc) {
+	m.onNotify = fn
 }
 
 // Create makes a new task and stores it.
@@ -204,8 +222,11 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, t *Task, r
 				"panic", r)
 			t.SetError(fmt.Sprintf("internal panic: %v", r))
 			t.SetStatus(StatusFailed)
+			m.emit(t, "task.failed", fmt.Sprintf("internal panic: %v", r))
 		}
 	}()
+
+	m.emit(t, "task.started", "task execution started")
 
 	onProgress := func(eventType, message string) {
 		t.SetProgress(message)
@@ -216,6 +237,7 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, t *Task, r
 				t.SetPID(pid)
 			}
 		}
+		m.emit(t, "task.progress", message)
 	}
 
 	result, err := m.executor.Execute(ctx, req, onProgress)
@@ -232,18 +254,41 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, t *Task, r
 			t.SetError("task timed out")
 			t.SetStatus(StatusFailed)
 			slog.Warn("task timed out", "task_id", t.ID)
+			m.emit(t, "task.failed", "task timed out")
 			return
 		}
 		if ctx.Err() == context.Canceled {
 			t.SetStatus(StatusCancelled)
+			m.emit(t, "task.cancelled", "task cancelled")
 			return
 		}
 		t.SetError(err.Error())
 		t.SetStatus(StatusFailed)
+		m.emit(t, "task.failed", err.Error())
 		return
 	}
 
 	t.SetStatus(StatusCompleted)
+	m.emit(t, "task.completed", "task completed successfully")
+}
+
+// emit sends a task event to the notify callback if one is set.
+func (m *Manager) emit(t *Task, eventType, message string) {
+	if m.onNotify == nil {
+		return
+	}
+	t.mu.RLock()
+	mcpSess := t.MCPSessionID
+	proj := t.Project
+	t.mu.RUnlock()
+
+	m.onNotify(TaskEvent{
+		Type:         eventType,
+		TaskID:       t.ID,
+		Project:      proj,
+		Message:      message,
+		MCPSessionID: mcpSess,
+	})
 }
 
 // Cancel stops a running task.
@@ -276,6 +321,7 @@ func (m *Manager) Cancel(id string) error {
 	}
 
 	t.SetStatus(StatusCancelled)
+	m.emit(t, "task.cancelled", "task cancelled by user")
 	return nil
 }
 

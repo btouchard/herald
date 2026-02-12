@@ -58,15 +58,16 @@ func (p Priority) Weight() int {
 type Task struct {
 	mu sync.RWMutex
 
-	ID        string
-	Type      Type
-	Project   string
-	Prompt    string
-	Status    Status
-	Priority  Priority
-	SessionID string
-	PID       int
-	GitBranch string
+	ID             string
+	Type           Type
+	Project        string
+	Prompt         string
+	Status         Status
+	Priority       Priority
+	SessionID      string
+	MCPSessionID   string // MCP client session for push notifications (runtime-only)
+	PID            int
+	GitBranch      string
 
 	output        []byte
 	maxOutputSize int
@@ -279,6 +280,7 @@ func (t *Task) Snapshot() TaskSnapshot {
 		Status:         t.Status,
 		Priority:       t.Priority,
 		SessionID:      t.SessionID,
+		MCPSessionID:   t.MCPSessionID,
 		GitBranch:      t.GitBranch,
 		Output:         string(t.output),
 		Progress:       t.Progress,
@@ -305,6 +307,7 @@ type TaskSnapshot struct {
 	Status         Status
 	Priority       Priority
 	SessionID      string
+	MCPSessionID   string
 	GitBranch      string
 	Output         string
 	Progress       string

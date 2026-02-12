@@ -24,6 +24,7 @@ func NewServer(deps *Deps) *server.MCPServer {
 		"Herald",
 		deps.Version,
 		server.WithToolCapabilities(true),
+		server.WithLogging(),
 	)
 
 	registerTools(s, deps)
