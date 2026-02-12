@@ -47,16 +47,19 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 				mcp.Description("If true, Claude Code plans but doesn't execute changes"),
 			),
 		),
-		handlers.StartTask(deps.Tasks, deps.Projects, deps.Execution.DefaultTimeout, deps.Execution.MaxTimeout, deps.Execution.MaxPromptSize),
+		handlers.StartTask(deps.Tasks, deps.Projects, deps.Execution.DefaultTimeout, deps.Execution.MaxTimeout, deps.Execution.MaxPromptSize, deps.Store),
 	)
 
 	// check_task — Check task status
 	s.AddTool(
 		mcp.NewTool("check_task",
-			mcp.WithDescription("Check the current status and progress of a running task."),
+			mcp.WithDescription("Check the current status and progress of a running task. Supports long-polling with wait_seconds to reduce polling overhead."),
 			mcp.WithString("task_id",
 				mcp.Required(),
 				mcp.Description("The task ID returned by start_task"),
+			),
+			mcp.WithNumber("wait_seconds",
+				mcp.Description("Wait up to N seconds for status changes before responding (long-poll). 0 for immediate response."),
 			),
 			mcp.WithBoolean("include_output",
 				mcp.Description("Include the last N lines of Claude Code output"),

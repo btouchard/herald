@@ -316,3 +316,50 @@ func TestSQLiteStore_GetTask_NotFound(t *testing.T) {
 	_, err := s.GetTask("herald-nonexist")
 	require.Error(t, err)
 }
+
+func TestSQLiteStore_GetAverageTaskDuration_WhenNoHistory_ReturnsZero(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	avg, count, err := s.GetAverageTaskDuration("my-project")
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(0), avg)
+	assert.Equal(t, 0, count)
+}
+
+func TestSQLiteStore_GetAverageTaskDuration_WhenHistory_ReturnsAverage(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	now := time.Now().Truncate(time.Second)
+
+	// Task 1: 60s duration
+	require.NoError(t, s.CreateTask(&TaskRecord{
+		ID: "herald-d001", Project: "proj", Prompt: "a", Status: "completed", Priority: "normal",
+		CreatedAt: now, StartedAt: now, CompletedAt: now.Add(60 * time.Second),
+	}))
+
+	// Task 2: 120s duration
+	require.NoError(t, s.CreateTask(&TaskRecord{
+		ID: "herald-d002", Project: "proj", Prompt: "b", Status: "completed", Priority: "normal",
+		CreatedAt: now.Add(time.Minute), StartedAt: now.Add(time.Minute), CompletedAt: now.Add(time.Minute + 120*time.Second),
+	}))
+
+	// Task 3: different project (should not be counted)
+	require.NoError(t, s.CreateTask(&TaskRecord{
+		ID: "herald-d003", Project: "other", Prompt: "c", Status: "completed", Priority: "normal",
+		CreatedAt: now, StartedAt: now, CompletedAt: now.Add(300 * time.Second),
+	}))
+
+	// Task 4: failed task (should not be counted)
+	require.NoError(t, s.CreateTask(&TaskRecord{
+		ID: "herald-d004", Project: "proj", Prompt: "d", Status: "failed", Priority: "normal",
+		CreatedAt: now, StartedAt: now, CompletedAt: now.Add(10 * time.Second),
+	}))
+
+	avg, count, err := s.GetAverageTaskDuration("proj")
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+	// Average of 60s and 120s = 90s
+	assert.InDelta(t, 90*time.Second, avg, float64(2*time.Second), "average should be ~90s")
+}

@@ -15,10 +15,17 @@ import (
 	"github.com/kolapsis/herald/internal/task"
 )
 
+// DurationEstimator provides average task duration for a project.
+// Defined at the consumer side per Go convention.
+type DurationEstimator interface {
+	GetAverageTaskDuration(project string) (time.Duration, int, error)
+}
+
 // StartTask returns a handler that creates and starts a Claude Code task.
 // defaultTimeout and maxTimeout are expressed as time.Duration.
 // maxPromptSize limits prompt length in bytes (0 = no limit).
-func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout time.Duration, maxPromptSize int) server.ToolHandlerFunc {
+// estimator may be nil to skip duration estimation.
+func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout time.Duration, maxPromptSize int, estimator DurationEstimator) server.ToolHandlerFunc {
 	defaultMinutes := int(defaultTimeout.Minutes())
 	if defaultMinutes <= 0 {
 		defaultMinutes = 30
@@ -100,8 +107,38 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 		if sessionID != "" {
 			fmt.Fprintf(&b, "- Resuming session: %s\n", sessionID)
 		}
+
+		// Duration estimation
+		if estimator != nil {
+			avgDur, count, estErr := estimator.GetAverageTaskDuration(proj.Name)
+			if estErr != nil {
+				slog.Warn("failed to get average task duration",
+					"project", proj.Name,
+					"error", estErr)
+			} else if count == 0 || avgDur <= 0 {
+				b.WriteString("- Estimated duration: unknown (no task history for this project)\n")
+			} else {
+				fmt.Fprintf(&b, "- Estimated duration: ~%s (based on %d previous tasks)\n",
+					formatEstimate(avgDur), count)
+
+				suggestedCheck := avgDur / 3
+				if suggestedCheck < 15*time.Second {
+					suggestedCheck = 15 * time.Second
+				}
+				fmt.Fprintf(&b, "- Suggested first check: in ~%s\n", formatEstimate(suggestedCheck))
+			}
+		}
+
 		fmt.Fprintf(&b, "\nUse check_task with ID '%s' to monitor progress.", t.ID)
 
 		return mcp.NewToolResultText(b.String()), nil
 	}
+}
+
+// formatEstimate returns a human-readable duration like "3m" or "45s".
+func formatEstimate(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	return fmt.Sprintf("%dm", int(d.Minutes()))
 }

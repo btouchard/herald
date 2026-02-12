@@ -27,6 +27,9 @@ type Store interface {
 	StoreAuthCode(c *AuthCodeRecord) error
 	ConsumeAuthCode(codeHash string) (*AuthCodeRecord, error)
 
+	// Analytics
+	GetAverageTaskDuration(project string) (time.Duration, int, error)
+
 	// Maintenance
 	Cleanup() error
 	Close() error

@@ -164,6 +164,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 	mcpServer := heraldmcp.NewServer(&heraldmcp.Deps{
 		Projects:  pm,
 		Tasks:     tm,
+		Store:     db,
 		Execution: cfg.Execution,
 		Version:   version,
 	})

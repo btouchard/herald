@@ -21,6 +21,16 @@ func (m *mockExecutor) Execute(_ context.Context, _ executor.Request, _ executor
 	return &executor.Result{Output: "done"}, nil
 }
 
+type mockEstimator struct {
+	avgDuration time.Duration
+	count       int
+	err         error
+}
+
+func (m *mockEstimator) GetAverageTaskDuration(_ string) (time.Duration, int, error) {
+	return m.avgDuration, m.count, m.err
+}
+
 func newTestDeps() (*task.Manager, *project.Manager) {
 	pm := project.NewManager(map[string]config.Project{
 		"test": {
@@ -45,7 +55,7 @@ func TestStartTask_WhenNormalTimeout_AcceptsIt(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, nil)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt":          "do something",
@@ -66,7 +76,7 @@ func TestStartTask_WhenTimeoutExceedsMax_ClampsToMax(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400) // max = 120 min
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, nil) // max = 120 min
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt":          "do something",
@@ -98,7 +108,7 @@ func TestStartTask_WhenTimeoutZeroOrNegative_UsesDefault(t *testing.T) {
 			t.Parallel()
 
 			tm, pm := newTestDeps()
-			handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
+			handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, nil)
 
 			result, err := handler(context.Background(), makeReq(map[string]any{
 				"prompt":          "do something",
@@ -120,7 +130,7 @@ func TestStartTask_WhenNoTimeoutProvided_UsesDefault(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400)
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, nil)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt": "do something",
@@ -139,7 +149,7 @@ func TestStartTask_WhenPromptTooLarge_RejectsWithError(t *testing.T) {
 	t.Parallel()
 
 	tm, pm := newTestDeps()
-	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 100) // max 100 bytes
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 100, nil) // max 100 bytes
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"prompt": string(make([]byte, 200)), // 200 bytes > 100 limit
@@ -148,4 +158,54 @@ func TestStartTask_WhenPromptTooLarge_RejectsWithError(t *testing.T) {
 
 	text := result.Content[0].(mcp.TextContent).Text
 	assert.Contains(t, text, "prompt too large")
+}
+
+func TestStartTask_WhenEstimatorHasHistory_IncludesEstimate(t *testing.T) {
+	t.Parallel()
+
+	tm, pm := newTestDeps()
+	est := &mockEstimator{avgDuration: 3 * time.Minute, count: 12}
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, est)
+
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"prompt": "do something",
+	}))
+	require.NoError(t, err)
+
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "Estimated duration: ~3m")
+	assert.Contains(t, text, "12 previous tasks")
+	assert.Contains(t, text, "Suggested first check")
+}
+
+func TestStartTask_WhenEstimatorNoHistory_ShowsUnknown(t *testing.T) {
+	t.Parallel()
+
+	tm, pm := newTestDeps()
+	est := &mockEstimator{avgDuration: 0, count: 0}
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, est)
+
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"prompt": "do something",
+	}))
+	require.NoError(t, err)
+
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "unknown (no task history")
+}
+
+func TestStartTask_WhenNilEstimator_SkipsEstimate(t *testing.T) {
+	t.Parallel()
+
+	tm, pm := newTestDeps()
+	handler := StartTask(tm, pm, 30*time.Minute, 2*time.Hour, 102400, nil)
+
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"prompt": "do something",
+	}))
+	require.NoError(t, err)
+
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "Task started")
+	assert.NotContains(t, text, "Estimated duration")
 }

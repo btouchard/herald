@@ -102,6 +102,130 @@ func TestCheckTask_WhenIncludeOutput_ShowsOutput(t *testing.T) {
 	assert.Contains(t, text, "Last output")
 }
 
+// --- CheckTask long-polling tests ---
+
+func TestCheckTask_WhenWaitZero_ReturnsImmediately(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+
+	start := time.Now()
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(0),
+	}))
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "running")
+	assert.Less(t, elapsed, 500*time.Millisecond, "wait_seconds=0 should return immediately")
+}
+
+func TestCheckTask_WhenWaitOnCompletedTask_ReturnsImmediately(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+	tsk.SetStatus(task.StatusCompleted)
+
+	start := time.Now()
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(5),
+	}))
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "completed")
+	assert.Less(t, elapsed, 500*time.Millisecond, "completed task should not wait")
+}
+
+func TestCheckTask_WhenWaitAndTaskCompletesDuringWait_ReturnsOnCompletion(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+
+	// Complete the task after 300ms
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		tsk.SetStatus(task.StatusCompleted)
+	}()
+
+	start := time.Now()
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(5),
+	}))
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "completed")
+	assert.Less(t, elapsed, 2*time.Second, "should return soon after task completes")
+	assert.Greater(t, elapsed, 200*time.Millisecond, "should have waited for completion")
+}
+
+func TestCheckTask_WhenWaitAndProgressChanges_ReturnsOnChange(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+	tsk.SetProgress("step 1")
+
+	// Change progress after 300ms
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		tsk.SetProgress("step 2")
+	}()
+
+	start := time.Now()
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(5),
+	}))
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "step 2")
+	assert.Less(t, elapsed, 2*time.Second, "should return soon after progress changes")
+}
+
+func TestCheckTask_WhenWaitExceedsMax_ClampsToMax(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+
+	// Request 60s wait (exceeds max of 30), should be clamped.
+	// We cancel the context after 1s to avoid actually waiting 30s in tests.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	result, err := handler(ctx, makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(60),
+	}))
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "running")
+}
+
 // --- GetResult tests ---
 
 func TestGetResult_WhenTaskCompleted_ReturnsSummary(t *testing.T) {
