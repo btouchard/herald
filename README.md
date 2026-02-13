@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://btouchard.github.io/herald/">Documentation</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#how-it-works">How It Works</a> &middot;
   <a href="#features">Features</a> &middot;
