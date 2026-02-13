@@ -5,7 +5,7 @@ server:
   # Herald listens on localhost only — use Traefik for external access
   host: "127.0.0.1"
   port: 8420
-  # Public URL (used for OAuth redirects and dashboard links)
+  # Public URL (used for OAuth redirects)
   public_url: "https://herald.example.com"
   # Log level: debug, info, warn, error
   log_level: "info"
@@ -72,6 +72,3 @@ projects:
 rate_limit:
   requests_per_minute: 60
   burst: 10
-
-dashboard:
-  enabled: true

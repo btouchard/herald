@@ -258,8 +258,6 @@ rate_limit:
   requests_per_minute: 60
   burst: 10
 
-dashboard:
-  enabled: true
 ```
 
 </details>
@@ -371,7 +369,7 @@ services:
 |---|---|---|
 | **v0.1** | :white_check_mark: Done | Core MCP server, async tasks, Git integration, OAuth 2.1, SQLite |
 | **v0.2** | :construction: In progress | Shared memory — bidirectional context between Claude Chat and Claude Code |
-| **v0.3** | :clipboard: Planned | Real-time dashboard (embedded web UI) |
+| **v0.3** | :clipboard: Planned | Real-time monitoring (web UI — long-term) |
 | **v1.0** | :rocket: Future | Stable API, plugin system |
 
 Have an idea? [Open an issue](https://github.com/kolapsis/herald/issues). We build what users need.

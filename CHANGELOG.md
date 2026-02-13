@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Dashboard references (moved to long-term roadmap)
+
 ### Added
 
 - Configurable model per task (`--model` flag, defaults to Sonnet for cost efficiency)

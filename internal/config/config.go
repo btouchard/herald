@@ -11,7 +11,6 @@ type Config struct {
 	Notifications NotificationsConfig `yaml:"notifications"`
 	Projects      map[string]Project  `yaml:"projects"`
 	RateLimit     RateLimitConfig     `yaml:"rate_limit"`
-	Dashboard     DashboardConfig     `yaml:"dashboard"`
 }
 
 type ServerConfig struct {
@@ -74,10 +73,6 @@ type RateLimitConfig struct {
 	Burst             int `yaml:"burst"`
 }
 
-type DashboardConfig struct {
-	Enabled bool `yaml:"enabled"`
-}
-
 // Defaults returns a Config with sensible default values.
 func Defaults() *Config {
 	return &Config{
@@ -112,9 +107,6 @@ func Defaults() *Config {
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: 200,
 			Burst:             100,
-		},
-		Dashboard: DashboardConfig{
-			Enabled: true,
 		},
 	}
 }

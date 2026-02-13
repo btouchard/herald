@@ -33,7 +33,7 @@ Herald est un serveur MCP (Model Context Protocol) self-hosted en Go qui connect
 
 ### Principes fondamentaux
 
-- **Binaire unique** : tout est embarqué dans un seul exécutable Go (~15-20MB). Le dashboard HTML est embedded via `go:embed`. Pas de Docker requis pour tourner.
+- **Binaire unique** : tout est embarqué dans un seul exécutable Go (~15-20MB). Pas de Docker requis pour tourner.
 - **Async-first** : chaque tâche Claude Code est un goroutine. Le pattern principal est start/check/result (polling côté MCP). Les tâches de type `linked` (créées via `herald_push`) représentent des sessions Claude Code poussées depuis le terminal pour continuation à distance.
 - **Stateless MCP, stateful backend** : le serveur MCP traite chaque requête indépendamment. L'état vit dans SQLite + mémoire.
 - **Fail-safe** : si Herald crash, les processus Claude Code en cours continuent. Les résultats sont persistés sur disque.
@@ -51,7 +51,6 @@ Claude Chat (mobile/web)
     → Claude Code Executor (os/exec → claude -p --output-format stream-json)
     → SQLite (persistence)
     → MCP Notifications (server push via SSE)
-  → Dashboard (embedded HTML/JS, /dashboard)
 
 Claude Code (terminal, via herald_push)
   → Herald Server
@@ -141,7 +140,7 @@ cmd/herald (wiring)
 
 - Chaque package `internal/` est autonome et ne dépend pas des autres sauf via interfaces.
 - Le wiring (injection de dépendances) se fait dans `cmd/herald/main.go` uniquement.
-- `internal/executor` ne connaît RIEN du MCP, de l'auth ou du dashboard. Il exécute des commandes et rapporte des résultats.
+- `internal/executor` ne connaît RIEN du MCP ou de l'auth. Il exécute des commandes et rapporte des résultats.
 - `internal/store` ne connaît RIEN du MCP. Il persiste et requête des données.
 
 ---
@@ -153,7 +152,7 @@ cmd/herald (wiring)
 | Package | Version | Usage |
 |---|---|---|
 | `github.com/mark3labs/mcp-go` | v0.27+ | Serveur MCP Streamable HTTP |
-| `github.com/go-chi/chi/v5` | v5.1+ | Router HTTP (REST API, dashboard) |
+| `github.com/go-chi/chi/v5` | v5.1+ | Router HTTP (REST API) |
 | `modernc.org/sqlite` | v1.34+ | SQLite pure Go, zero CGO |
 | `github.com/google/uuid` | v1.6+ | Génération UUID |
 | `gopkg.in/yaml.v3` | v3.0+ | Parsing configuration YAML |

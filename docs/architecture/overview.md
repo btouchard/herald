@@ -26,7 +26,7 @@ Claude Code (terminal, reverse flow)
 
 ### Single Binary
 
-Everything is embedded in one Go executable (~15MB). The dashboard HTML/CSS/JS is compiled in via `go:embed`. No Docker, no runtime dependencies, no node_modules.
+Everything is embedded in one Go executable (~15MB). No Docker, no runtime dependencies, no node_modules.
 
 ### Async-First
 
@@ -54,7 +54,6 @@ cmd/herald (wiring)
   └── internal/store       → (modernc.org/sqlite, nothing internal)
   └── internal/notify      → (net/http, nothing internal)
   └── internal/api         → internal/task, internal/project
-  └── internal/dashboard   → (go:embed, nothing internal)
 ```
 
 Each `internal/` package is autonomous and communicates with others through interfaces. Dependency injection happens in `cmd/herald/main.go` only.
@@ -70,8 +69,7 @@ Each `internal/` package is autonomous and communicates with others through inte
 | **Auth** | `internal/auth` | OAuth 2.1 server with PKCE, JWT tokens, token rotation |
 | **Notify** | `internal/notify` | MCP push notifications (server-initiated via SSE) |
 | **Project** | `internal/project` | Project configuration, validation, Git status |
-| **Dashboard** | `internal/dashboard` | Embedded web UI served via `go:embed` |
-| **API** | `internal/api` | REST API for dashboard and automation |
+| **API** | `internal/api` | REST API for automation |
 | **Config** | `internal/config` | YAML loading, env var expansion, defaults |
 
 ### Key Interfaces

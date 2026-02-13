@@ -254,8 +254,6 @@ rate_limit:
   requests_per_minute: 60
   burst: 10
 
-dashboard:
-  enabled: true
 ```
 
 </details>
@@ -367,7 +365,7 @@ services:
 |---|---|---|
 | **v0.1** | :white_check_mark: Termine | Serveur MCP core, taches async, integration Git, OAuth 2.1, SQLite |
 | **v0.2** | :construction: En cours | Memoire partagee — contexte bidirectionnel entre Claude Chat et Claude Code |
-| **v0.3** | :clipboard: Prevu | Dashboard temps reel (UI web embarquee) |
+| **v0.3** | :clipboard: Prevu | Monitoring temps reel (UI web — long terme) |
 | **v1.0** | :rocket: Futur | API stable, systeme de plugins |
 
 Une idee ? [Ouvrez une issue](https://github.com/kolapsis/herald/issues). On construit ce dont les utilisateurs ont besoin.

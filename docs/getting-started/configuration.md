@@ -136,15 +136,6 @@ rate_limit:
 
 Per-token rate limiting using the token bucket algorithm. Applied to all MCP and API endpoints.
 
-### Dashboard
-
-```yaml
-dashboard:
-  enabled: true
-```
-
-Enables the embedded web dashboard at `/dashboard`.
-
 ## Environment Variable Substitution
 
 Any value in `herald.yaml` can reference an environment variable:
