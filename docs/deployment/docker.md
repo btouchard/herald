@@ -39,8 +39,6 @@ services:
     volumes:
       - "~/.config/herald:/root/.config/herald"
       - "/home/user/projects:/projects:ro"
-    environment:
-      - HERALD_CLIENT_SECRET
     restart: unless-stopped
 ```
 
@@ -66,12 +64,11 @@ Herald needs `network_mode: host` because it must:
 ## Environment Variables
 
 ```bash
-# Required
+# Optional — override auto-generated secret (for multi-instance deployments)
 HERALD_CLIENT_SECRET=your-secret-here
-
-# Optional
-HERALD_ADMIN_PASSWORD_HASH=sha256-hash-here
 ```
+
+The client secret is auto-generated on first run and persisted in `~/.config/herald/secret`. You only need the environment variable if you're running multiple Herald instances that must share the same secret.
 
 ## Building the Image
 

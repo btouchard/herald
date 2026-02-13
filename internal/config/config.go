@@ -23,19 +23,11 @@ type ServerConfig struct {
 }
 
 type AuthConfig struct {
-	ClientID          string          `yaml:"client_id"`
-	ClientSecret      string          `yaml:"client_secret"`
-	AdminPasswordHash string          `yaml:"admin_password_hash"`
-	AccessTokenTTL    time.Duration   `yaml:"access_token_ttl"`
-	RefreshTokenTTL   time.Duration   `yaml:"refresh_token_ttl"`
-	RedirectURIs      []string        `yaml:"redirect_uris"`
-	APITokens         []APITokenEntry `yaml:"api_tokens"`
-}
-
-type APITokenEntry struct {
-	Name      string `yaml:"name"`
-	TokenHash string `yaml:"token_hash"`
-	Scope     string `yaml:"scope"`
+	ClientID        string        `yaml:"client_id"`
+	ClientSecret    string        `yaml:"client_secret"`
+	AccessTokenTTL  time.Duration `yaml:"access_token_ttl"`
+	RefreshTokenTTL time.Duration `yaml:"refresh_token_ttl"`
+	RedirectURIs    []string      `yaml:"redirect_uris"`
 }
 
 type DatabaseConfig struct {

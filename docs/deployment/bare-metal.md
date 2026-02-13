@@ -22,12 +22,9 @@ mkdir -p ~/.config/herald
 
 # Copy and edit config
 cp configs/herald.example.yaml ~/.config/herald/herald.yaml
-
-# Generate secret
-export HERALD_CLIENT_SECRET="$(openssl rand -hex 32)"
 ```
 
-Edit `~/.config/herald/herald.yaml` with your domain and projects. See [Configuration](../getting-started/configuration.md) for the full reference.
+Edit `~/.config/herald/herald.yaml` with your domain and projects. The client secret is auto-generated on first run. See [Configuration](../getting-started/configuration.md) for the full reference.
 
 ## systemd Service
 
@@ -46,11 +43,6 @@ ExecStart=/usr/local/bin/herald serve
 Restart=on-failure
 RestartSec=5
 
-# Environment
-Environment=HERALD_CLIENT_SECRET=your-secret-here
-# Or use an environment file:
-# EnvironmentFile=/etc/herald/env
-
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -62,13 +54,8 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-!!! tip "Use EnvironmentFile for secrets"
-    Instead of putting secrets directly in the unit file, create `/etc/herald/env`:
-    ```
-    HERALD_CLIENT_SECRET=your-secret-here
-    HERALD_ADMIN_PASSWORD_HASH=your-hash-here
-    ```
-    Then use `EnvironmentFile=/etc/herald/env` in the service.
+!!! tip "Secret management"
+    The client secret is auto-generated and stored in `~/.config/herald/secret`. To rotate it, run `herald rotate-secret` and restart the service.
 
 ### Enable and Start
 

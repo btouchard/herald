@@ -39,8 +39,6 @@ services:
     volumes:
       - "~/.config/herald:/root/.config/herald"
       - "~/projects:/root/projects:ro"
-    environment:
-      - HERALD_CLIENT_SECRET
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.herald.rule=Host(`herald.yourdomain.com`)"

@@ -83,9 +83,8 @@ cd herald && make build
 # Configure
 mkdir -p ~/.config/herald
 cp configs/herald.example.yaml ~/.config/herald/herald.yaml
-export HERALD_CLIENT_SECRET="$(openssl rand -hex 32)"
 
-# Run
+# Run (client secret is auto-generated on first start)
 ./bin/herald serve
 ```
 

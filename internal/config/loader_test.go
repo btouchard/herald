@@ -200,16 +200,11 @@ func TestLoadFromFile_ParsesAllAuthFields(t *testing.T) {
 auth:
   client_id: "test-client"
   client_secret: "test-secret"
-  admin_password_hash: "hash123"
   access_token_ttl: 2h
   refresh_token_ttl: 48h
   redirect_uris:
     - "https://example.com/callback"
     - "https://other.com/callback"
-  api_tokens:
-    - name: "local"
-      token_hash: "token-hash-123"
-      scope: "*"
 `
 	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
 	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0644))
@@ -219,12 +214,9 @@ auth:
 
 	assert.Equal(t, "test-client", cfg.Auth.ClientID)
 	assert.Equal(t, "test-secret", cfg.Auth.ClientSecret)
-	assert.Equal(t, "hash123", cfg.Auth.AdminPasswordHash)
 	assert.Equal(t, 2*time.Hour, cfg.Auth.AccessTokenTTL)
 	assert.Equal(t, 48*time.Hour, cfg.Auth.RefreshTokenTTL)
 	assert.Equal(t, []string{"https://example.com/callback", "https://other.com/callback"}, cfg.Auth.RedirectURIs)
-	require.Len(t, cfg.Auth.APITokens, 1)
-	assert.Equal(t, "local", cfg.Auth.APITokens[0].Name)
 }
 
 func TestLoadFromFile_ParsesNewSecurityFields(t *testing.T) {

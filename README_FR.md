@@ -161,9 +161,8 @@ cd herald && make build
 # Configurer
 mkdir -p ~/.config/herald
 cp configs/herald.example.yaml ~/.config/herald/herald.yaml
-export HERALD_CLIENT_SECRET="$(openssl rand -hex 32)"
 
-# Lancer
+# Lancer (le secret client est auto-genere au premier demarrage)
 ./bin/herald serve
 ```
 
@@ -177,7 +176,6 @@ server:
 
 auth:
   client_id: "herald-claude-chat"
-  client_secret: "${HERALD_CLIENT_SECRET}"
 
 projects:
   my-api:
@@ -215,8 +213,7 @@ server:
 
 auth:
   client_id: "herald-claude-chat"
-  client_secret: "${HERALD_CLIENT_SECRET}"
-  admin_password_hash: "${HERALD_ADMIN_PASSWORD_HASH}"
+  # client_secret est auto-genere — redefinir avec la var env HERALD_CLIENT_SECRET si besoin
   access_token_ttl: 1h
   refresh_token_ttl: 720h    # 30 jours
 
@@ -356,8 +353,6 @@ services:
     volumes:
       - "~/.config/herald:/root/.config/herald"
       - "~/projets:/root/projets:ro"
-    environment:
-      - HERALD_CLIENT_SECRET
     labels:
       - "traefik.http.routers.herald.rule=Host(`herald.votredomaine.com`)"
       - "traefik.http.routers.herald.tls.certresolver=le"

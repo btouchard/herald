@@ -156,10 +156,11 @@ Logged actions include: task creation, task start, task completion/failure, file
 
 ### 9. Secret Management
 
-- All secrets are configured via environment variables (`${HERALD_CLIENT_SECRET}`)
-- Never hardcoded in YAML or source code
-- Client secret is hashed (SHA-256) before storage
-- OAuth tokens are JWTs signed with a server-side key
+- Client secret is auto-generated on first run and stored in `~/.config/herald/secret` (mode 0600)
+- Can be overridden via `HERALD_CLIENT_SECRET` environment variable
+- Rotate with `herald rotate-secret` (invalidates all sessions)
+- Client secret is hashed (SHA-256) before use in memory
+- OAuth tokens are JWTs signed with a key derived from the client secret
 
 ## Hardening Checklist
 

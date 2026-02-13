@@ -9,11 +9,7 @@ mkdir -p ~/.config/herald
 cp configs/herald.example.yaml ~/.config/herald/herald.yaml
 ```
 
-Generate a client secret:
-
-```bash
-export HERALD_CLIENT_SECRET="$(openssl rand -hex 32)"
-```
+The client secret is **auto-generated** on first run and stored in `~/.config/herald/secret`. No manual setup needed.
 
 ## Full Reference
 
@@ -35,8 +31,7 @@ server:
 ```yaml
 auth:
   client_id: "herald-claude-chat"
-  client_secret: "${HERALD_CLIENT_SECRET}"
-  admin_password_hash: "${HERALD_ADMIN_PASSWORD_HASH}"
+  # client_secret is auto-generated — override with HERALD_CLIENT_SECRET env var if needed
   access_token_ttl: 1h
   refresh_token_ttl: 720h     # 30 days
   redirect_uris:
@@ -46,15 +41,14 @@ auth:
 
 | Field | Default | Description |
 |---|---|---|
-| `client_id` | — | OAuth client ID (shared with Claude Chat connector setup) |
-| `client_secret` | — | OAuth client secret. **Must be set via env var.** |
-| `admin_password_hash` | — | SHA-256 hash for dashboard admin access |
+| `client_id` | `herald-claude-chat` | OAuth client ID (shared with Claude Chat connector setup) |
+| `client_secret` | auto-generated | OAuth client secret. Auto-generated and stored in `~/.config/herald/secret`. Override with `HERALD_CLIENT_SECRET` env var. |
 | `access_token_ttl` | `1h` | Access token lifetime |
 | `refresh_token_ttl` | `720h` | Refresh token lifetime (30 days) |
 | `redirect_uris` | — | Allowed OAuth redirect URIs (exact match) |
 
-!!! tip "Never hardcode secrets"
-    Use environment variable substitution (`${VAR}`) for all secrets. Herald expands `${VAR}` references in YAML values at load time.
+!!! tip "Secret management"
+    The client secret is auto-generated on first run and persisted in `~/.config/herald/secret` (mode 0600). To rotate it, run `herald rotate-secret`. To override, set the `HERALD_CLIENT_SECRET` environment variable.
 
 ### Database
 

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -41,6 +42,8 @@ func main() {
 		fmt.Printf("herald %s\n", version)
 	case "check":
 		cmdCheck(os.Args[2:])
+	case "rotate-secret":
+		cmdRotateSecret(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		printUsage()
@@ -51,9 +54,10 @@ func main() {
 func printUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: herald <command> [flags]\n\n")
 	fmt.Fprintf(os.Stderr, "Commands:\n")
-	fmt.Fprintf(os.Stderr, "  serve     Start the Herald server\n")
-	fmt.Fprintf(os.Stderr, "  check     Validate configuration\n")
-	fmt.Fprintf(os.Stderr, "  version   Print version\n")
+	fmt.Fprintf(os.Stderr, "  serve           Start the Herald server\n")
+	fmt.Fprintf(os.Stderr, "  check           Validate configuration\n")
+	fmt.Fprintf(os.Stderr, "  rotate-secret   Generate a new client secret (invalidates sessions)\n")
+	fmt.Fprintf(os.Stderr, "  version         Print version\n")
 }
 
 func cmdServe(args []string) {
@@ -64,6 +68,12 @@ func cmdServe(args []string) {
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	// Load or auto-generate client secret (env var takes precedence)
+	if err := ensureClientSecret(cfg, *configPath); err != nil {
+		slog.Error("failed to load client secret", "error", err)
 		os.Exit(1)
 	}
 
@@ -95,6 +105,53 @@ func cmdCheck(args []string) {
 	}
 
 	fmt.Println("configuration is valid")
+}
+
+func cmdRotateSecret(args []string) {
+	fs := flag.NewFlagSet("rotate-secret", flag.ExitOnError)
+	configPath := fs.String("config", "", "path to config file")
+	_ = fs.Parse(args) // ExitOnError handles errors
+
+	dir := configDirFrom(*configPath)
+	secret, err := auth.RotateSecret(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	_ = secret // don't print the secret itself
+	fmt.Println("Secret rotated. Restart Herald to apply. All existing sessions will be invalidated.")
+}
+
+// ensureClientSecret loads the client secret into cfg.Auth.ClientSecret.
+// Priority: env var HERALD_CLIENT_SECRET > config file value > auto-generated file.
+func ensureClientSecret(cfg *config.Config, configPath string) error {
+	// If the config already has a non-empty secret (from YAML with env var
+	// substitution), keep it.
+	if cfg.Auth.ClientSecret != "" {
+		return nil
+	}
+
+	dir := configDirFrom(configPath)
+	secret, err := auth.LoadOrCreateSecret(dir)
+	if err != nil {
+		return err
+	}
+
+	cfg.Auth.ClientSecret = secret
+	slog.Info("client secret loaded from file", "path", filepath.Join(dir, "secret"))
+	return nil
+}
+
+// configDirFrom returns the config directory. If a config file path is given,
+// its parent directory is used; otherwise falls back to ~/.config/herald.
+func configDirFrom(configPath string) string {
+	if configPath != "" {
+		return filepath.Dir(configPath)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".config", "herald")
+	}
+	return "."
 }
 
 func loadConfig(path string) (*config.Config, error) {
