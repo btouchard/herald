@@ -12,6 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// writeTestScript writes a shell script atomically using rename to avoid
+// "text file busy" errors on Linux when the script is executed immediately.
+func writeTestScript(t *testing.T, path, content string) {
+	t.Helper()
+	tmp := path + ".tmp"
+	require.NoError(t, os.WriteFile(tmp, []byte(content), 0755))
+	require.NoError(t, os.Rename(tmp, path))
+}
+
 func TestParseStream_WhenVeryLongLine_HandlesWithoutPanic(t *testing.T) {
 	t.Parallel()
 
@@ -161,7 +170,7 @@ cat <<'STREAM'
 {"type":"result","subtype":"success","cost_usd":0.25,"duration_ms":5000,"num_turns":2}
 STREAM
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -198,7 +207,7 @@ func TestExecute_WhenCommandFails_ReturnsErrorWithExitCode(t *testing.T) {
 echo '{"type":"system","subtype":"init","session_id":"ses_fail"}' >&1
 exit 1
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -226,7 +235,7 @@ func TestExecute_WhenContextCancelled_ReturnsError(t *testing.T) {
 	script := `#!/bin/sh
 sleep 60
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -255,7 +264,7 @@ func TestExecute_WhenSessionIDProvided_PassesResumeFlag(t *testing.T) {
 	script := `#!/bin/sh
 echo '{"type":"result","subtype":"success","cost_usd":0.01,"num_turns":1}'
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -282,7 +291,7 @@ func TestExecute_WhenAllowedToolsProvided_PassesToolFlags(t *testing.T) {
 	script := `#!/bin/sh
 echo '{"type":"result","subtype":"success","cost_usd":0.01,"num_turns":1}'
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -310,7 +319,7 @@ func TestExecute_WhenEnvVarsSet_MergesEnvironment(t *testing.T) {
 	script := `#!/bin/sh
 echo '{"type":"result","subtype":"success","cost_usd":0.01,"num_turns":1}'
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -343,7 +352,7 @@ func TestExecute_WhenStderrOutput_CapturesWithoutError(t *testing.T) {
 echo "debug info" >&2
 echo '{"type":"result","subtype":"success","cost_usd":0.01,"num_turns":1}'
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
@@ -370,7 +379,7 @@ func TestExecute_WhenProgressFuncProvided_ReceivesStartedEvent(t *testing.T) {
 echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Working..."}]}}'
 echo '{"type":"result","subtype":"success","cost_usd":0.01,"num_turns":1}'
 `
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0755))
+	writeTestScript(t, scriptPath, script)
 
 	exec := &ClaudeExecutor{
 		ClaudePath: scriptPath,
