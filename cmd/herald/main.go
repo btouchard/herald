@@ -122,7 +122,7 @@ func cmdHealth(args []string) {
 		fmt.Fprintf(os.Stderr, "unhealthy: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(os.Stderr, "unhealthy: status %d\n", resp.StatusCode)

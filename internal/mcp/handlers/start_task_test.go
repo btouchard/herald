@@ -12,7 +12,7 @@ import (
 	"github.com/btouchard/herald/internal/executor"
 	"github.com/btouchard/herald/internal/project"
 	"github.com/btouchard/herald/internal/task"
-	"github.com/🚧/internal/config"
+	"github.com/btouchard/herald/internal/config"
 )
 
 type mockExecutor struct{}
