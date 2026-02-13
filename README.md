@@ -212,12 +212,16 @@ server:
   port: 8420
   public_url: "https://herald.yourdomain.com"
   log_level: "info"           # debug, info, warn, error
+  log_file: ""                # Optional file path for log output
 
 auth:
   client_id: "herald-claude-chat"
   # client_secret is auto-generated — override with HERALD_CLIENT_SECRET env var if needed
   access_token_ttl: 1h
   refresh_token_ttl: 720h    # 30 days
+  redirect_uris:
+    - "https://claude.ai/oauth/callback"
+    - "https://claude.ai/api/oauth/callback"
 
 database:
   path: "~/.config/herald/herald.db"
@@ -225,6 +229,7 @@ database:
 
 execution:
   claude_path: "claude"
+  model: "claude-sonnet-4-5-20250929"  # Default model for tasks
   default_timeout: 30m
   max_timeout: 2h
   work_dir: "~/.config/herald/work"
@@ -255,8 +260,8 @@ projects:
       branch_prefix: "herald/"
 
 rate_limit:
-  requests_per_minute: 60
-  burst: 10
+  requests_per_minute: 200
+  burst: 100
 
 ```
 
@@ -290,7 +295,7 @@ Herald exposes Claude Code to the network. We take that seriously.
 | **Tokens** | Access tokens: 1h. Refresh tokens: 30d, rotated on each use. |
 | **Filesystem** | Path traversal protection on all file operations. Symlink escapes blocked. |
 | **Execution** | Per-project tool restrictions. No blanket `--dangerously-skip-permissions`. |
-| **Rate limiting** | 60 req/min per token. Configurable. |
+| **Rate limiting** | 200 req/min per token (configurable). |
 | **Timeouts** | Every task has a deadline (default: 30min). No runaway processes. |
 | **Prompts** | Passed to Claude Code unmodified. No injection, no enrichment, no rewriting. |
 | **Audit** | Every action logged with timestamp and identity. |
@@ -310,7 +315,7 @@ Claude Chat (mobile/web)
     └── MCP Notifications (server push via SSE)
 ```
 
-**Design principles**: single binary (everything embedded via `go:embed`), async-first (each task is a goroutine), stateless MCP with stateful backend, fail-safe (Herald crash doesn't kill running Claude Code processes).
+**Design principles**: single binary (everything compiled into one Go executable), async-first (each task is a goroutine), stateless MCP with stateful backend, fail-safe (Herald crash doesn't kill running Claude Code processes).
 
 <details>
 <summary><strong>Tech stack</strong></summary>

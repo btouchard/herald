@@ -7,19 +7,31 @@
 
 ```dockerfile
 FROM golang:1.26-alpine AS builder
+
+RUN apk add --no-cache git
+
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /herald ./cmd/herald
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \
+    -o herald ./cmd/herald
 
 FROM scratch
-COPY --from=builder /herald /herald
+
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-USER 65534:65534
+COPY --from=builder /build/herald /herald
+
 EXPOSE 8420
+
+VOLUME ["/data", "/config"]
+
 HEALTHCHECK --interval=30s --timeout=3s CMD ["/herald", "health"]
-ENTRYPOINT ["/herald", "serve"]
+
+ENTRYPOINT ["/herald"]
+CMD ["serve", "--config", "/config/herald.yaml"]
 ```
 
 Key properties:
@@ -35,11 +47,17 @@ Key properties:
 services:
   herald:
     build: .
-    network_mode: host
+    ports:
+      - "8420:8420"
     volumes:
-      - "~/.config/herald:/root/.config/herald"
-      - "/home/user/projects:/projects:ro"
+      - herald-data:/data
+      - ./configs/herald.example.yaml:/config/herald.yaml:ro
+    environment:
+      - HERALD_CLIENT_SECRET=${HERALD_CLIENT_SECRET:-}
     restart: unless-stopped
+
+volumes:
+  herald-data:
 ```
 
 ## Important: Host Networking

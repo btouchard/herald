@@ -29,7 +29,17 @@ Four minutes later, it's done. Branch created, code refactored, tests passing, c
                                            ├── writes the code
                                            ├── runs the tests
                                            └── commits to a branch
+
+  You (terminal)
+       │
+       │  Claude Code calls herald_push
+       ▼
+  Claude Code ──── MCP ────► Herald ────► Claude Chat picks it up
+                                           └── session context, summary,
+                                               files modified, git branch
 ```
+
+The bridge is **bidirectional**. Claude Chat dispatches tasks to Claude Code, and Claude Code can push session context back to Herald for remote monitoring and continuation from another device.
 
 Your code never leaves your machine. Herald just orchestrates.
 

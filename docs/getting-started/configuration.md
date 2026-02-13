@@ -65,10 +65,13 @@ Herald uses SQLite (pure Go, zero CGO) for persistence. Tasks, tokens, and audit
 ```yaml
 execution:
   claude_path: "claude"
+  model: "claude-sonnet-4-5-20250929"
   default_timeout: 30m
   max_timeout: 2h
   work_dir: "~/.config/herald/work"
   max_concurrent: 3
+  max_prompt_size: 102400
+  max_output_size: 1048576
   env:
     CLAUDE_CODE_ENTRYPOINT: "herald"
     CLAUDE_CODE_DISABLE_AUTO_UPDATE: "1"
@@ -77,10 +80,13 @@ execution:
 | Field | Default | Description |
 |---|---|---|
 | `claude_path` | `"claude"` | Path to Claude Code binary |
+| `model` | `claude-sonnet-4-5-20250929` | Default Claude model for tasks (overridable per-task) |
 | `default_timeout` | `30m` | Default task timeout |
 | `max_timeout` | `2h` | Maximum allowed timeout (clamps user requests) |
 | `work_dir` | `~/.config/herald/work` | Temp directory for prompts and outputs |
 | `max_concurrent` | `3` | Global concurrent task limit |
+| `max_prompt_size` | `102400` | Maximum prompt size in bytes (100KB) |
+| `max_output_size` | `1048576` | Maximum output size in bytes (1MB) |
 | `env` | — | Environment variables passed to Claude Code |
 
 ### Notifications
@@ -117,7 +123,7 @@ projects:
 | `path` | Yes | Absolute path to the project directory |
 | `description` | No | Human-readable description (shown in `list_projects`) |
 | `default` | No | If `true`, this project is used when no project is specified |
-| `allowed_tools` | Yes | Claude Code tools this project can use |
+| `allowed_tools` | Recommended | Claude Code tools this project can use |
 | `max_concurrent_tasks` | No | Per-project concurrency limit |
 | `git.auto_branch` | No | Create a new branch for each task |
 | `git.auto_stash` | No | Stash uncommitted changes before switching branches |
@@ -130,8 +136,8 @@ See [Multi-Project](../guide/multi-project.md) for advanced setups.
 
 ```yaml
 rate_limit:
-  requests_per_minute: 60
-  burst: 10
+  requests_per_minute: 200
+  burst: 100
 ```
 
 Per-token rate limiting using the token bucket algorithm. Applied to all MCP and API endpoints.

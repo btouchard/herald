@@ -22,9 +22,8 @@ In Claude Chat (web or mobile):
 Claude Chat will initiate the OAuth 2.1 flow:
 
 1. You'll be redirected to Herald's authorization page
-2. Enter your admin credentials
-3. Authorize the connection
-4. Claude Chat receives an access token via PKCE
+2. Herald auto-approves the connection (no login page in current version)
+3. Claude Chat receives an access token via PKCE
 
 ### 4. Verify the Connection
 

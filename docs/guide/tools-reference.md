@@ -18,6 +18,7 @@ Launch a Claude Code task on a project. Returns immediately with a task ID. The 
 | `session_id` | string | No | — | Session ID to resume (multi-turn conversations) |
 | `git_branch` | string | No | auto-generated | Branch to create/use |
 | `dry_run` | boolean | No | `false` | If true, plan without making changes |
+| `model` | string | No | config default | Claude model to use (e.g., `claude-sonnet-4-5-20250929`, `claude-opus-4-6`) |
 
 ### Example Response
 
@@ -42,6 +43,7 @@ Check the current status and progress of a task.
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `task_id` | string | **Yes** | — | Task ID from `start_task` |
+| `wait_seconds` | number | No | `0` | Wait up to N seconds for status changes before responding (long-poll). Only returns early on status changes, not progress updates. |
 | `include_output` | boolean | No | `false` | Include recent Claude Code output |
 | `output_lines` | number | No | `20` | Number of output lines to include |
 
@@ -210,6 +212,8 @@ Read a file from a configured project.
 |---|---|---|---|---|
 | `path` | string | **Yes** | — | Relative path within the project |
 | `project` | string | No | default project | Project name |
+| `line_start` | number | No | — | Start reading from this line number (registered but not implemented in current version) |
+| `line_end` | number | No | — | Stop reading at this line number (registered but not implemented in current version) |
 
 !!! warning "Security"
     All paths are validated against the project root. Path traversal attempts (e.g., `../../etc/passwd`) are blocked. Files larger than 1MB are rejected.

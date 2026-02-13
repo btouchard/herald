@@ -136,17 +136,17 @@ The global `execution.max_concurrent` setting applies across all projects.
 
 ```yaml
 git:
-  auto_branch: true       # Create a new branch for each task
-  auto_stash: true        # Stash uncommitted changes before branching
-  auto_commit: true       # Commit changes when task completes
+  auto_branch: true       # Create a new branch for each task (default: false)
+  auto_stash: true        # Stash uncommitted changes before branching (default: false)
+  auto_commit: true       # Commit changes when task completes (default: false)
   branch_prefix: "herald/"  # Branch naming: herald/{task-id}-{description}
 ```
 
 | Setting | Default | Description |
 |---|---|---|
-| `auto_branch` | `true` | Create an isolated branch per task |
-| `auto_stash` | `true` | Stash dirty working tree before branching |
-| `auto_commit` | `true` | Auto-commit on task completion |
+| `auto_branch` | `false` | Create an isolated branch per task |
+| `auto_stash` | `false` | Stash dirty working tree before branching |
+| `auto_commit` | `false` | Auto-commit on task completion |
 | `branch_prefix` | `"herald/"` | Prefix for generated branch names |
 
 !!! tip "Disable Git integration for docs"

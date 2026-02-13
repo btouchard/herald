@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white" alt="Go 1.26+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="AGPL-3.0 License"></a>
   <a href="https://github.com/kolapsis/herald/stargazers"><img src="https://img.shields.io/github/stars/kolapsis/herald?style=social" alt="GitHub Stars"></a>
 </p>
 
@@ -210,12 +210,16 @@ server:
   port: 8420
   public_url: "https://herald.votredomaine.com"
   log_level: "info"           # debug, info, warn, error
+  log_file: ""                # Chemin optionnel pour la sortie des logs
 
 auth:
   client_id: "herald-claude-chat"
   # client_secret est auto-genere — redefinir avec la var env HERALD_CLIENT_SECRET si besoin
   access_token_ttl: 1h
   refresh_token_ttl: 720h    # 30 jours
+  redirect_uris:
+    - "https://claude.ai/oauth/callback"
+    - "https://claude.ai/api/oauth/callback"
 
 database:
   path: "~/.config/herald/herald.db"
@@ -223,10 +227,13 @@ database:
 
 execution:
   claude_path: "claude"
+  model: "claude-sonnet-4-5-20250929"  # Modele par defaut pour les taches
   default_timeout: 30m
   max_timeout: 2h
   work_dir: "~/.config/herald/work"
   max_concurrent: 3
+  max_prompt_size: 102400    # 100KB
+  max_output_size: 1048576   # 1MB
   env:
     CLAUDE_CODE_ENTRYPOINT: "herald"
     CLAUDE_CODE_DISABLE_AUTO_UPDATE: "1"
@@ -251,8 +258,8 @@ projects:
       branch_prefix: "herald/"
 
 rate_limit:
-  requests_per_minute: 60
-  burst: 10
+  requests_per_minute: 200
+  burst: 100
 
 ```
 
@@ -286,7 +293,7 @@ Herald expose Claude Code sur le reseau. On prend ca au serieux.
 | **Tokens** | Access tokens : 1h. Refresh tokens : 30j, rotation a chaque utilisation. |
 | **Filesystem** | Protection path traversal sur toutes les operations fichier. Echappement symlink bloque. |
 | **Execution** | Restrictions d'outils par projet. Pas de `--dangerously-skip-permissions`. |
-| **Rate limiting** | 60 req/min par token. Configurable. |
+| **Rate limiting** | 200 req/min par token (configurable). |
 | **Timeouts** | Chaque tache a une deadline (defaut : 30min). Pas de processus zombie. |
 | **Prompts** | Transmis a Claude Code sans modification. Pas d'injection, pas d'enrichissement. |
 | **Audit** | Chaque action logguee avec horodatage et identite. |
@@ -306,7 +313,7 @@ Claude Chat (mobile/web)
     '-- Notifications MCP (push serveur via SSE)
 ```
 
-**Principes** : binaire unique (tout embarque via `go:embed`), async-first (chaque tache est une goroutine), MCP stateless avec backend stateful, fail-safe (un crash de Herald ne tue pas les processus Claude Code en cours).
+**Principes** : binaire unique (tout compile dans un seul executable Go), async-first (chaque tache est une goroutine), MCP stateless avec backend stateful, fail-safe (un crash de Herald ne tue pas les processus Claude Code en cours).
 
 <details>
 <summary><strong>Stack technique</strong></summary>
@@ -410,7 +417,7 @@ Herald utilise le meme protocole qu'Anthropic a construit pour ses propres integ
 ---
 
 <p align="center">
-  <a href="LICENSE"><strong>Licence MIT</strong></a> — Fait par <a href="https://github.com/kolapsis"><strong>Kolapsis</strong></a>
+  <a href="LICENSE"><strong>AGPL-3.0 License</strong></a> — Fait par <a href="https://github.com/kolapsis"><strong>Kolapsis</strong></a>
   <br /><br />
   Si Herald vous fait gagner du temps, <a href="https://github.com/kolapsis/herald">laissez une etoile</a>. Ca aide les autres a decouvrir le projet.
 </p>

@@ -53,7 +53,6 @@ cmd/herald (wiring)
   └── internal/executor    → (os/exec, nothing internal)
   └── internal/store       → (modernc.org/sqlite, nothing internal)
   └── internal/notify      → (net/http, nothing internal)
-  └── internal/api         → internal/task, internal/project
 ```
 
 Each `internal/` package is autonomous and communicates with others through interfaces. Dependency injection happens in `cmd/herald/main.go` only.
@@ -69,7 +68,6 @@ Each `internal/` package is autonomous and communicates with others through inte
 | **Auth** | `internal/auth` | OAuth 2.1 server with PKCE, JWT tokens, token rotation |
 | **Notify** | `internal/notify` | MCP push notifications (server-initiated via SSE) |
 | **Project** | `internal/project` | Project configuration, validation, Git status |
-| **API** | `internal/api` | REST API for automation |
 | **Config** | `internal/config` | YAML loading, env var expansion, defaults |
 
 ### Key Interfaces
@@ -77,20 +75,20 @@ Each `internal/` package is autonomous and communicates with others through inte
 ```go
 // store.Store — persistence layer
 type Store interface {
-    CreateTask(ctx context.Context, task *Task) error
-    GetTask(ctx context.Context, id string) (*Task, error)
-    UpdateTask(ctx context.Context, task *Task) error
-    ListTasks(ctx context.Context, filter Filter) ([]*Task, error)
+    CreateTask(t *TaskRecord) error
+    GetTask(id string) (*TaskRecord, error)
+    UpdateTask(t *TaskRecord) error
+    ListTasks(f TaskFilter) ([]TaskRecord, error)
 }
 
 // executor.Executor — task execution
 type Executor interface {
-    Execute(ctx context.Context, req Request) (*Result, error)
+    Execute(ctx context.Context, req Request, onProgress ProgressFunc) (*Result, error)
 }
 
 // notify.Notifier — notification delivery
 type Notifier interface {
-    Notify(ctx context.Context, event Event) error
+    Notify(event Event)
 }
 ```
 
@@ -132,7 +130,7 @@ Interfaces are defined by their consumers, not their implementors. Small (1-3 me
 ### Claude Code Execution
 
 ```
-1. Prompt written to /tmp/herald/{task_id}/prompt.md
+1. Prompt written to {work_dir}/tasks/{task_id}/prompt.md
 2. Executor runs: cat prompt.md | claude -p --output-format stream-json
 3. Stream-json output parsed line by line
 4. Progress events update task state in memory

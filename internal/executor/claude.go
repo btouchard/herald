@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -95,13 +96,20 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, req Request, onProgress Pr
 		onProgress("started", fmt.Sprintf("PID %d", cmd.Process.Pid))
 	}
 
-	// Parse stream-json output
+	// Parse stream-json output in background goroutines.
+	// WaitGroup ensures parseStream finishes writing to result before we read it.
+	var wg sync.WaitGroup
 	result := &Result{}
-	go e.parseStream(req.TaskID, stdout, result, onProgress)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		e.parseStream(req.TaskID, stdout, result, onProgress)
+	}()
 	go e.captureStderr(req.TaskID, stderr)
 
-	// Wait for the process to complete
+	// Wait for the process to complete, then wait for stream parsing to finish
 	waitErr := cmd.Wait()
+	wg.Wait()
 	result.Duration = time.Since(start)
 
 	if waitErr != nil {

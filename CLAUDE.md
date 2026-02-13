@@ -92,7 +92,7 @@ herald/
 │   │   ├── executor.go             # Interface Executor
 │   │   ├── claude.go               # Claude Code executor (os/exec)
 │   │   ├── stream.go               # Parsing stream-json output
-│   │   └── prompt.go               # Prompt file management (/tmp)
+│   │   └── prompt.go               # Prompt file management (work_dir)
 │   ├── task/
 │   │   ├── manager.go              # Task lifecycle management
 │   │   └── task.go                 # Task struct et états
@@ -121,7 +121,7 @@ herald/
 ├── Makefile
 ├── go.mod
 ├── go.sum
-├── LICENSE                         # MIT
+├── LICENSE                         # AGPL-3.0
 ├── README.md
 ├── CHANGELOG.md
 └── CLAUDE.md                       # Ce fichier
@@ -285,7 +285,7 @@ Herald expose Claude Code sur le réseau. La sécurité n'est pas optionnelle.
 2. **OAuth 2.1 avec PKCE** obligatoire pour le endpoint MCP. Aucune requête MCP sans Bearer token valide.
 3. **Pas de `--dangerously-skip-permissions`** par défaut. Les `allowed_tools` sont passés explicitement à Claude Code par projet.
 4. **Path traversal prevention** sur `read_file` : le path résolu doit toujours rester sous le répertoire du projet. Utiliser `filepath.Abs` + `strings.HasPrefix`.
-5. **Rate limiting** : 60 requêtes/minute par token. Configurable mais activé par défaut.
+5. **Rate limiting** : 200 requêtes/minute par token. Configurable mais activé par défaut.
 6. **Timeouts obligatoires** : chaque tâche a un timeout (défaut 30 min, max configurable). Pas de tâche infinie.
 7. **Prompts jamais modifiés** : Herald transmet le prompt tel quel. Pas d'injection, pas d'enrichissement, pas de system prompt ajouté.
 8. **Tokens courte durée** : access token 1h, refresh token 30j, rotation à chaque refresh.
@@ -381,25 +381,21 @@ GOEXPERIMENT=goroutineleakprofile go test ./tests/integration/... -v -run TestNo
 ### Commandes
 
 ```bash
-# Unitaires
-make test-unit
-# → go test ./internal/... -short -race -count=1
-
-# Intégration
-make test-integration
-# → go test ./tests/integration/... -tags=integration -race -count=1
-
-# Tout
+# Tous les tests + race detector
 make test
-# → go test ./... -v -race -count=1
+# → go test ./... -race -count=1
 
-# Avec détection goroutine leaks (Go 1.26)
-make test-leaks
-# → GOEXPERIMENT=goroutineleakprofile go test ./tests/integration/... -v
+# Couverture
+make test-cover
+# → go test ./... -race -count=1 -coverprofile=coverage.out
+
+# go vet
+make vet
+# → go vet ./...
 
 # Linting
 make lint
-# → golangci-lint run ./...
+# → golangci-lint run
 ```
 
 ### Couverture minimale
@@ -523,7 +519,7 @@ Summary: Added rate limiting middleware...
 
 Claude Code a des limites quand le prompt dépasse ~7000 chars en argument CLI. Stratégie obligatoire :
 
-1. Écrire le prompt dans `/tmp/herald/{task_id}/prompt.md`
+1. Écrire le prompt dans `{work_dir}/tasks/{task_id}/prompt.md`
 2. Piper via stdin : `cat prompt.md | claude -p --output-format stream-json`
 3. Ne JAMAIS passer un long prompt en argument de ligne de commande
 
@@ -555,14 +551,11 @@ Claude Code a des limites quand le prompt dépasse ~7000 chars en argument CLI. 
 
 ```bash
 make build              # Compiler le binaire
-make build-debug        # Compiler avec goroutine leak detection (Go 1.26)
 make test               # Tous les tests + race detector
-make test-unit          # Tests unitaires uniquement
-make test-integration   # Tests d'intégration (SQLite, handlers)
-make test-leaks         # Tests avec goroutine leak profile (Go 1.26)
+make test-cover         # Tests avec rapport de couverture
+make vet                # go vet
 make lint               # golangci-lint
-make fix                # go fix modernisé (Go 1.26)
-make run                # Lancer le serveur
+make run                # Compiler et lancer le serveur
 make dev                # Hot reload avec air
 ```
 

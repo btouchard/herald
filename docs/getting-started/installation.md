@@ -46,7 +46,7 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/herald.
 
 ```bash
 # Check the binary runs
-./bin/herald --help
+./bin/herald version
 
 # Verify Claude Code is available
 claude --version

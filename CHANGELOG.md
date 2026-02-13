@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Configurable model per task (`--model` flag, defaults to Sonnet for cost efficiency)
+- Configurable model per task (`model` parameter on `start_task`, defaults to Sonnet for cost efficiency)
 - Auto-generated secrets (zero-config auth setup)
 - `herald rotate-secret` subcommand
 - `herald health` subcommand for Docker HEALTHCHECK

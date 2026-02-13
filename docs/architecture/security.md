@@ -16,7 +16,7 @@ Herald exposes Claude Code to the network. This page describes the threat model 
 |---|---|---|
 | Network listener | HTTPS endpoint | Binds to `127.0.0.1` only; reverse proxy handles TLS |
 | Authentication | OAuth 2.1 endpoint | PKCE mandatory, constant-time secret comparison |
-| MCP tools | 9 tools callable remotely | OAuth required, per-token rate limiting |
+| MCP tools | 10 tools callable remotely | OAuth required, per-token rate limiting |
 | Filesystem | `read_file` tool | Path traversal protection, project root sandboxing |
 | Execution | Claude Code spawning | Per-project tool restrictions, timeouts, concurrency limits |
 | Prompts | User-provided instructions | Passed unmodified — no injection possible from Herald side |
@@ -128,8 +128,8 @@ Per-token rate limiting using the token bucket algorithm:
 
 ```yaml
 rate_limit:
-  requests_per_minute: 60
-  burst: 10
+  requests_per_minute: 200
+  burst: 100
 ```
 
 - Applied to all MCP and API endpoints
