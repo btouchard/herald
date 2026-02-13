@@ -175,7 +175,7 @@ func TestCheckTask_WhenWaitAndTaskCompletesDuringWait_ReturnsOnCompletion(t *tes
 	assert.Greater(t, elapsed, 200*time.Millisecond, "should have waited for completion")
 }
 
-func TestCheckTask_WhenWaitAndProgressChanges_ReturnsOnChange(t *testing.T) {
+func TestCheckTask_WhenWaitAndOnlyProgressChanges_WaitsUntilTimeout(t *testing.T) {
 	t.Parallel()
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
@@ -184,10 +184,38 @@ func TestCheckTask_WhenWaitAndProgressChanges_ReturnsOnChange(t *testing.T) {
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetProgress("step 1")
 
-	// Change progress after 300ms
+	// Change progress after 300ms — should NOT cause early return
 	go func() {
 		time.Sleep(300 * time.Millisecond)
 		tsk.SetProgress("step 2")
+	}()
+
+	start := time.Now()
+	result, err := handler(context.Background(), makeReq(map[string]any{
+		"task_id":      tsk.ID,
+		"wait_seconds": float64(2),
+	}))
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	text := result.Content[0].(mcp.TextContent).Text
+	assert.Contains(t, text, "running")
+	// Should have waited the full 2s, not returned early on progress change
+	assert.GreaterOrEqual(t, elapsed, 2*time.Second, "progress-only change should not trigger early return")
+}
+
+func TestCheckTask_WhenWaitAndStatusChanges_ReturnsEarly(t *testing.T) {
+	t.Parallel()
+	tm, _ := newTestDeps()
+	handler := CheckTask(tm)
+
+	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk.SetStatus(task.StatusRunning)
+
+	// Change status after 300ms — SHOULD cause early return
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		tsk.SetStatus(task.StatusFailed)
 	}()
 
 	start := time.Now()
@@ -199,8 +227,9 @@ func TestCheckTask_WhenWaitAndProgressChanges_ReturnsOnChange(t *testing.T) {
 
 	require.NoError(t, err)
 	text := result.Content[0].(mcp.TextContent).Text
-	assert.Contains(t, text, "step 2")
-	assert.Less(t, elapsed, 2*time.Second, "should return soon after progress changes")
+	assert.Contains(t, text, "failed")
+	assert.Less(t, elapsed, 2*time.Second, "status change should trigger early return")
+	assert.Greater(t, elapsed, 200*time.Millisecond, "should have waited for status change")
 }
 
 func TestCheckTask_WhenWaitExceedsMax_ClampsToMax(t *testing.T) {

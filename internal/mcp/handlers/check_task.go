@@ -19,7 +19,7 @@ const (
 
 // CheckTask returns a handler that reports a task's current status.
 // When wait_seconds > 0 and the task is still running, it long-polls
-// until the status or progress changes, or the timeout expires.
+// until the status changes or the timeout expires.
 func CheckTask(tm *task.Manager) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := req.GetArguments()
@@ -60,8 +60,10 @@ func CheckTask(tm *task.Manager) server.ToolHandlerFunc {
 	}
 }
 
-// waitForChange polls the task until its status or progress changes,
-// the task completes, or the timeout expires.
+// waitForChange polls the task until its status changes, the task
+// completes via Done channel, or the timeout expires. Progress-only
+// changes do not trigger an early return — only status transitions
+// (e.g. running→completed) do.
 func waitForChange(ctx context.Context, t *task.Task, initial task.TaskSnapshot, timeout time.Duration) task.TaskSnapshot {
 	deadline := time.After(timeout)
 	ticker := time.NewTicker(longPollInterval)
@@ -77,7 +79,7 @@ func waitForChange(ctx context.Context, t *task.Task, initial task.TaskSnapshot,
 			return t.Snapshot()
 		case <-ticker.C:
 			snap := t.Snapshot()
-			if snap.Status != initial.Status || snap.Progress != initial.Progress {
+			if snap.Status != initial.Status {
 				return snap
 			}
 		}

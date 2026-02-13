@@ -59,7 +59,7 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 				mcp.Description("The task ID returned by start_task"),
 			),
 			mcp.WithNumber("wait_seconds",
-				mcp.Description("Wait up to N seconds for status changes before responding (long-poll). 0 for immediate response."),
+				mcp.Description("Wait up to N seconds for status changes before responding (long-poll). 0 for immediate response. Only returns early on status changes (e.g. running→completed), not on progress updates."),
 			),
 			mcp.WithBoolean("include_output",
 				mcp.Description("Include the last N lines of Claude Code output"),
