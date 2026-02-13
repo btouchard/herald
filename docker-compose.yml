@@ -1,0 +1,14 @@
+services:
+  herald:
+    build: .
+    ports:
+      - "8420:8420"
+    volumes:
+      - herald-data:/data
+      - ./configs/herald.example.yaml:/config/herald.yaml:ro
+    environment:
+      - HERALD_CLIENT_SECRET=${HERALD_CLIENT_SECRET:-}
+    restart: unless-stopped
+
+volumes:
+  herald-data:

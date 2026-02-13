@@ -42,6 +42,8 @@ func main() {
 		fmt.Printf("herald %s\n", version)
 	case "check":
 		cmdCheck(os.Args[2:])
+	case "health":
+		cmdHealth(os.Args[2:])
 	case "rotate-secret":
 		cmdRotateSecret(os.Args[2:])
 	default:
@@ -56,6 +58,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "Commands:\n")
 	fmt.Fprintf(os.Stderr, "  serve           Start the Herald server\n")
 	fmt.Fprintf(os.Stderr, "  check           Validate configuration\n")
+	fmt.Fprintf(os.Stderr, "  health          Check if the server is running\n")
 	fmt.Fprintf(os.Stderr, "  rotate-secret   Generate a new client secret (invalidates sessions)\n")
 	fmt.Fprintf(os.Stderr, "  version         Print version\n")
 }
@@ -105,6 +108,27 @@ func cmdCheck(args []string) {
 	}
 
 	fmt.Println("configuration is valid")
+}
+
+func cmdHealth(args []string) {
+	fs := flag.NewFlagSet("health", flag.ExitOnError)
+	port := fs.Int("port", 8420, "server port")
+	_ = fs.Parse(args) // ExitOnError handles errors
+
+	url := fmt.Sprintf("http://127.0.0.1:%d/health", *port)
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unhealthy: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "unhealthy: status %d\n", resp.StatusCode)
+		os.Exit(1)
+	}
+	fmt.Println("healthy")
 }
 
 func cmdRotateSecret(args []string) {

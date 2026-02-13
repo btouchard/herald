@@ -22,5 +22,7 @@ EXPOSE 8420
 
 VOLUME ["/data", "/config"]
 
+HEALTHCHECK --interval=30s --timeout=3s CMD ["/herald", "health"]
+
 ENTRYPOINT ["/herald"]
 CMD ["serve", "--config", "/config/herald.yaml"]

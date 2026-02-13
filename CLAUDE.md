@@ -66,7 +66,7 @@ Claude Code (terminal, via herald_push)
 herald/
 ├── cmd/
 │   └── herald/
-│       └── main.go                 # Entry point minimal : config → wiring → start
+│       └── main.go                 # Entry point : config → wiring → start
 ├── internal/
 │   ├── config/
 │   │   ├── config.go               # Struct de configuration
@@ -86,7 +86,9 @@ herald/
 │   │   │   ├── herald_push.go      # Tool: herald_push (bidirectional bridge)
 │   │   │   └── get_logs.go         # Tool: get_logs
 │   │   └── middleware/
-│   │       └── auth.go             # OAuth token validation middleware
+│   │       ├── auth.go             # OAuth token validation middleware
+│   │       ├── ratelimit.go        # Rate limiting middleware
+│   │       └── security.go         # Security headers middleware
 │   ├── executor/
 │   │   ├── executor.go             # Interface Executor
 │   │   ├── claude.go               # Claude Code executor (os/exec)
@@ -94,9 +96,7 @@ herald/
 │   │   └── prompt.go               # Prompt file management (/tmp)
 │   ├── task/
 │   │   ├── manager.go              # Task lifecycle management
-│   │   ├── task.go                 # Task struct et états
-│   │   ├── queue.go                # File d'attente avec priorités
-│   │   └── pool.go                 # Goroutine pool limité
+│   │   └── task.go                 # Task struct et états
 │   ├── store/
 │   │   ├── store.go                # Interface Store
 │   │   ├── sqlite.go               # Implémentation SQLite (modernc.org/sqlite)
@@ -107,40 +107,18 @@ herald/
 │   ├── auth/
 │   │   ├── oauth.go                # OAuth 2.1 server (authorization code + PKCE)
 │   │   ├── token.go                # JWT token generation/validation
-│   │   └── store.go                # Token storage SQLite
+│   │   ├── secret.go               # Secret auto-generation and persistence
+│   │   ├── store.go                # Token storage interface
+│   │   └── sqlitestore.go          # Token storage SQLite implementation
 │   ├── project/
 │   │   ├── project.go              # Struct Project
 │   │   └── manager.go              # Chargement et validation projets
-│   ├── git/
-│   │   ├── git.go                  # Interface Git operations
-│   │   └── operations.go           # Branch, stash, commit, diff
-│   ├── template/
-│   │   ├── template.go             # Struct Template
-│   │   ├── loader.go               # Chargement templates YAML
-│   │   └── engine.go               # Variable substitution
-│   ├── pipeline/
-│   │   ├── pipeline.go             # Struct Pipeline
-│   │   ├── runner.go               # Exécution séquentielle de tâches
-│   │   └── condition.go            # Évaluation des conditions
-│   ├── api/
-│   │   ├── router.go               # REST API router (/api/v1/*)
-│   │   └── handlers.go             # REST handlers
-│   └── dashboard/
-│       ├── handler.go              # HTTP handler pour /dashboard
-│       └── embed.go                # go:embed directive
-├── web/
-│   └── dashboard/
-│       ├── index.html              # Dashboard SPA
-│       ├── style.css               # CSS vanilla, dark mode natif
-│       └── app.js                  # JS vanilla + SSE (EventSource)
+│   └── git/
+│       └── git.go                  # Git operations (diff, branch info)
 ├── configs/
-│   ├── herald.example.yaml         # Configuration exemple
-│   └── templates/                  # Templates de prompts (review, test, fix...)
-├── scripts/
-│   ├── install.sh
-│   └── setup-oauth.sh
+│   └── herald.example.yaml         # Configuration exemple
 ├── Dockerfile                      # Multi-stage build (Go 1.26 → scratch)
-├── docker-compose.yml              # Herald + Traefik (optionnel)
+├── docker-compose.yml              # Minimal Herald deployment
 ├── Makefile
 ├── go.mod
 ├── go.sum
@@ -159,8 +137,6 @@ cmd/herald (wiring)
   └── internal/executor    → (os/exec, rien d'interne)
   └── internal/store       → (modernc.org/sqlite, rien d'interne)
   └── internal/notify      → (net/http, rien d'interne)
-  └── internal/api         → internal/task, internal/project
-  └── internal/dashboard   → (go:embed, rien d'interne)
 ```
 
 - Chaque package `internal/` est autonome et ne dépend pas des autres sauf via interfaces.
@@ -283,7 +259,7 @@ if bytes.Contains(prefix, []byte(`"type":"result"`)) {
 ### Concurrence
 
 - Toujours `context.Context` comme premier paramètre des fonctions longues ou annulables.
-- Chaque tâche Claude Code tourne dans son propre goroutine, géré par le pool dans `task/pool.go`.
+- Chaque tâche Claude Code tourne dans son propre goroutine, géré par le task manager.
 - Protéger les goroutines avec `recover()` pour éviter les crashes silencieux.
 - Channels pour la communication (events, notifications), mutex pour l'état partagé (task map, queue).
 - **Attention aux goroutine leaks** : builder avec `GOEXPERIMENT=goroutineleakprofile` en CI.
@@ -447,24 +423,26 @@ Herald est conçu pour tourner en binaire direct (pas dans Docker) car il a beso
 
 ```dockerfile
 FROM golang:1.26-alpine AS builder
+RUN apk add --no-cache git
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /herald ./cmd/herald
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o herald ./cmd/herald
 
 FROM scratch
-COPY --from=builder /herald /herald
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-USER 65534:65534
+COPY --from=builder /build/herald /herald
 EXPOSE 8420
+VOLUME ["/data", "/config"]
 HEALTHCHECK --interval=30s --timeout=3s CMD ["/herald", "health"]
-ENTRYPOINT ["/herald", "serve"]
+ENTRYPOINT ["/herald"]
+CMD ["serve", "--config", "/config/herald.yaml"]
 ```
 
-### Docker Compose (avec Traefik)
+### Docker Compose
 
-Le docker-compose est fourni pour les utilisateurs qui veulent Herald + Traefik en un seul déploiement. Il requiert `network_mode: host` ou des volumes montés pour accéder à Claude Code et aux projets locaux.
+Le docker-compose est fourni pour un déploiement minimal de Herald. Il requiert des volumes montés pour accéder à la configuration et aux données persistées.
 
 ---
 
@@ -502,12 +480,6 @@ func GenerateTaskID() string {
 - Branches de travail Herald : `herald/{task-id-short}-{description}`
 - Branches dev : `feat/description`, `fix/description`, `refactor/description`
 - Commits : `type(scope): description` en anglais
-
-### Dashboard (web/)
-
-- HTML/CSS/JS vanilla uniquement. Pas de framework, pas de build step, pas de npm.
-- Servi par le binaire Go via `go:embed`.
-- Dark mode natif via `prefers-color-scheme`.
 
 ---
 
