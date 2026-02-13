@@ -1,48 +1,50 @@
-.PHONY: build build-debug test test-unit test-integration test-leaks test-cover lint fix run dev clean install release
+.PHONY: build test test-cover lint dev clean install release vet
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS := -s -w -X main.version=$(VERSION)
+# Variables
+BINARY_NAME=herald
+VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)"
 
+# Build
 build:
-	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o bin/herald ./cmd/herald
+	CGO_ENABLED=0 go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/herald
 
-build-debug:
-	CGO_ENABLED=0 GOEXPERIMENT=goroutineleakprofile go build -o bin/herald-debug ./cmd/herald
-
+# Test
 test:
-	go test ./... -v -race -count=1
-
-test-unit:
-	go test ./internal/... -v -short -race -count=1
-
-test-integration:
-	go test ./tests/integration/... -tags=integration -v -race -count=1
-
-test-leaks:
-	GOEXPERIMENT=goroutineleakprofile go test ./tests/integration/... -v -run TestNoGoroutineLeak
+	go test ./... -race -count=1
 
 test-cover:
 	go test ./... -race -count=1 -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
+# Quality
+vet:
+	go vet ./...
+
 lint:
-	golangci-lint run ./...
+	@which golangci-lint > /dev/null 2>&1 || (echo "Install: https://golangci-lint.run/usage/install/" && exit 1)
+	golangci-lint run
 
-fix:
-	go fix ./...
-
-run:
-	go run ./cmd/herald serve
-
+# Dev
 dev:
+	@which air > /dev/null 2>&1 || (echo "Install: go install github.com/air-verse/air@latest" && exit 1)
 	air -c .air.toml
 
-clean:
-	rm -rf bin/ tmp/ coverage.out coverage.html
+run: build
+	./bin/$(BINARY_NAME) serve
 
+# Install
 install: build
-	cp bin/herald $(GOPATH)/bin/herald 2>/dev/null || cp bin/herald /usr/local/bin/herald
+	cp bin/$(BINARY_NAME) $(GOPATH)/bin/$(BINARY_NAME)
 
+# Clean
+clean:
+	rm -rf bin/ coverage.out coverage.html
+
+# Release
 release:
+	@which goreleaser > /dev/null 2>&1 || (echo "Install: https://goreleaser.com/install/" && exit 1)
 	goreleaser release --snapshot --clean

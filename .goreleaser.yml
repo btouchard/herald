@@ -1,5 +1,13 @@
 version: 2
 
+project_name: herald
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+    - go test ./... -count=1
+
 builds:
   - id: herald
     main: ./cmd/herald
@@ -13,25 +21,31 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.buildTime={{.Date}}
 
 archives:
   - id: herald
     format: tar.gz
-    name_template: "herald_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - README_FR.md
+      - LICENSE
+      - CHANGELOG.md
+      - configs/herald.example.yaml
 
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
 changelog:
+  use: github
   sort: asc
   filters:
     exclude:
       - "^docs:"
-      - "^chore:"
+      - "^test:"
       - "^ci:"
-
-release:
-  draft: true
-  prerelease: auto
