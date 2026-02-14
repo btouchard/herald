@@ -421,10 +421,15 @@ func run(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	return srv.Shutdown(shutdownCtx)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Warn("graceful shutdown timed out, forcing close", "error", err)
+		srv.Close()
+	}
+
+	return nil
 }
 
 // Herald favicon — yellow-green tilted rounded square with dark "H".
