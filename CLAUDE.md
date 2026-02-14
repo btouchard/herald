@@ -281,7 +281,7 @@ Herald expose Claude Code sur le réseau. La sécurité n'est pas optionnelle.
 
 ### Règles de sécurité inviolables
 
-1. **Herald écoute sur `127.0.0.1` uniquement.** Jamais sur `0.0.0.0`. Traefik gère l'exposition réseau et le TLS.
+1. **Herald écoute sur `127.0.0.1` uniquement.** Jamais sur `0.0.0.0`. Traefik gère l'exposition réseau et le TLS (ou ngrok tunnel optionnel — voir config `tunnel.enabled`).
 2. **OAuth 2.1 avec PKCE** obligatoire pour le endpoint MCP. Aucune requête MCP sans Bearer token valide.
 3. **Pas de `--dangerously-skip-permissions`** par défaut. Les `allowed_tools` sont passés explicitement à Claude Code par projet.
 4. **Path traversal prevention** sur `read_file` : le path résolu doit toujours rester sous le répertoire du projet. Utiliser `filepath.Abs` + `strings.HasPrefix`.

@@ -41,6 +41,8 @@ func Load() (*Config, error) {
 		}
 	}
 
+	applyEnvOverrides(cfg)
+
 	if err := validate(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -56,11 +58,21 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("loading config %s: %w", path, err)
 	}
 
+	applyEnvOverrides(cfg)
+
 	if err := validate(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// applyEnvOverrides applies environment variable overrides to the configuration.
+// Environment variables have higher priority than YAML config values.
+func applyEnvOverrides(cfg *Config) {
+	if token := os.Getenv("HERALD_NGROK_AUTHTOKEN"); token != "" {
+		cfg.Tunnel.AuthToken = token
+	}
 }
 
 func loadFile(cfg *Config, path string) error {

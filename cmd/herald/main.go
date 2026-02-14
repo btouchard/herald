@@ -26,6 +26,7 @@ import (
 	"github.com/btouchard/herald/internal/project"
 	"github.com/btouchard/herald/internal/store"
 	"github.com/btouchard/herald/internal/task"
+	"github.com/btouchard/herald/internal/tunnel"
 )
 
 var version = "dev"
@@ -82,7 +83,6 @@ func cmdServe(args []string) {
 	}
 
 	setupLogging(cfg)
-	printBanner(cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	err = run(ctx, cfg)
@@ -165,7 +165,7 @@ func ensureClientSecret(cfg *config.Config, configPath string) error {
 }
 
 // printBanner displays a formatted startup summary with server info and OAuth credentials.
-func printBanner(cfg *config.Config) {
+func printBanner(cfg *config.Config, tunnelURL string) {
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 
 	fmt.Fprintf(os.Stderr, "\n")
@@ -174,6 +174,9 @@ func printBanner(cfg *config.Config) {
 	fmt.Fprintf(os.Stderr, "  Server:          %s\n", addr)
 	if cfg.Server.PublicURL != "" {
 		fmt.Fprintf(os.Stderr, "  Public URL:      %s\n", cfg.Server.PublicURL)
+	}
+	if tunnelURL != "" {
+		fmt.Fprintf(os.Stderr, "  Tunnel:          %s (%s)\n", tunnelURL, cfg.Tunnel.Provider)
 	}
 	fmt.Fprintf(os.Stderr, "  Database:        %s\n", cfg.Database.Path)
 	fmt.Fprintf(os.Stderr, "  Max concurrent:  %d\n", cfg.Execution.MaxConcurrent)
@@ -305,7 +308,34 @@ func run(ctx context.Context, cfg *config.Config) error {
 
 	mcpHTTP := server.NewStreamableHTTPServer(mcpServer)
 
+	// --- Optional Tunnel (ngrok) ---
+	// Start tunnel BEFORE OAuth to ensure cfg.Server.PublicURL is set correctly
+	var tun tunnel.Tunnel
+	tunnelURL := ""
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+
+	if cfg.Tunnel.Enabled {
+		slog.Info("tunnel enabled", "provider", cfg.Tunnel.Provider)
+
+		switch cfg.Tunnel.Provider {
+		case "ngrok":
+			tun = tunnel.NewNgrok(cfg.Tunnel.AuthToken, cfg.Tunnel.Domain)
+			publicURL, err := tun.Start(ctx, addr)
+			if err != nil {
+				slog.Warn("failed to start tunnel, continuing with local server only", "error", err)
+			} else {
+				tunnelURL = publicURL
+				// Override PublicURL with tunnel URL for OAuth metadata
+				cfg.Server.PublicURL = tunnelURL
+				slog.Info("tunnel established", "public_url", tunnelURL)
+			}
+		default:
+			slog.Warn("unknown tunnel provider, ignoring", "provider", cfg.Tunnel.Provider)
+		}
+	}
+
 	// --- OAuth Server (backed by SQLite) ---
+	// Now uses the correct PublicURL (either from config or from tunnel)
 	authStore := auth.NewSQLiteAuthStore(db)
 	oauth := auth.NewOAuthServerWithStore(cfg.Auth, cfg.Server.PublicURL, authStore)
 	go oauth.StartCleanupLoop(ctx.Done())
@@ -343,8 +373,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// --- HTTP Server ---
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	// --- HTTP Server (local) ---
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      r,
@@ -353,22 +382,45 @@ func run(ctx context.Context, cfg *config.Config) error {
 		IdleTimeout:  2 * time.Minute,
 	}
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
+
+	// Start local server
 	go func() {
-		slog.Info("herald is ready", "addr", addr)
+		slog.Info("starting local server", "addr", addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
+			errCh <- fmt.Errorf("local server: %w", err)
 		}
-		close(errCh)
 	}()
+
+	// Start tunnel server (if tunnel was established)
+	if tun != nil && tunnelURL != "" {
+		go func() {
+			slog.Info("starting tunnel server", "public_url", tunnelURL)
+			if err := http.Serve(tun.Listener(), r); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errCh <- fmt.Errorf("tunnel server: %w", err)
+			}
+		}()
+	}
+
+	// Print banner after all servers are started
+	printBanner(cfg, tunnelURL)
+	slog.Info("herald is ready", "local", addr, "tunnel", tunnelURL)
 
 	select {
 	case err := <-errCh:
-		return fmt.Errorf("http server: %w", err)
+		return fmt.Errorf("server error: %w", err)
 	case <-ctx.Done():
 	}
 
 	slog.Info("shutting down")
+
+	// Close tunnel first
+	if tun != nil {
+		if err := tun.Close(); err != nil {
+			slog.Warn("failed to close tunnel", "error", err)
+		}
+	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

@@ -11,6 +11,7 @@ type Config struct {
 	Notifications NotificationsConfig `yaml:"notifications"`
 	Projects      map[string]Project  `yaml:"projects"`
 	RateLimit     RateLimitConfig     `yaml:"rate_limit"`
+	Tunnel        TunnelConfig        `yaml:"tunnel"`
 }
 
 type ServerConfig struct {
@@ -73,6 +74,13 @@ type RateLimitConfig struct {
 	Burst             int `yaml:"burst"`
 }
 
+type TunnelConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	Provider  string `yaml:"provider"`
+	AuthToken string `yaml:"authtoken"`
+	Domain    string `yaml:"domain"`
+}
+
 // Defaults returns a Config with sensible default values.
 func Defaults() *Config {
 	return &Config{
@@ -107,6 +115,10 @@ func Defaults() *Config {
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: 200,
 			Burst:             100,
+		},
+		Tunnel: TunnelConfig{
+			Enabled:  false,
+			Provider: "ngrok",
 		},
 	}
 }

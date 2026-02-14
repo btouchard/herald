@@ -72,3 +72,14 @@ projects:
 rate_limit:
   requests_per_minute: 60
   burst: 10
+
+# Optional: ngrok tunnel for instant HTTPS exposure (no Traefik/Caddy needed)
+# Disabled by default — requires ngrok account (free or paid)
+# tunnel:
+#   enabled: true
+#   provider: "ngrok"  # only "ngrok" supported for now
+#   # Auth token from https://dashboard.ngrok.com/get-started/your-authtoken
+#   # Set via env var HERALD_NGROK_AUTHTOKEN or uncomment:
+#   # authtoken: "2abc..."
+#   # Optional: fixed domain (paid plans only)
+#   # domain: "my-herald.ngrok-free.app"

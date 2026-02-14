@@ -260,3 +260,71 @@ server:
 	assert.Equal(t, "127.0.0.1", cfg.Server.Host, "default host should be preserved")
 	assert.Equal(t, 3, cfg.Execution.MaxConcurrent, "default max_concurrent should be preserved")
 }
+
+func TestDefaults_TunnelDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := Defaults()
+
+	assert.False(t, cfg.Tunnel.Enabled)
+	assert.Equal(t, "ngrok", cfg.Tunnel.Provider)
+	assert.Empty(t, cfg.Tunnel.AuthToken)
+	assert.Empty(t, cfg.Tunnel.Domain)
+}
+
+func TestLoadFromFile_ParsesTunnelConfig(t *testing.T) {
+	t.Parallel()
+
+	content := `
+tunnel:
+  enabled: true
+  provider: "ngrok"
+  authtoken: "test-token-123"
+  domain: "my-herald.ngrok-free.app"
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0600))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Tunnel.Enabled)
+	assert.Equal(t, "ngrok", cfg.Tunnel.Provider)
+	assert.Equal(t, "test-token-123", cfg.Tunnel.AuthToken)
+	assert.Equal(t, "my-herald.ngrok-free.app", cfg.Tunnel.Domain)
+}
+
+func TestLoadFromFile_TunnelEnvVarOverridesYAML(t *testing.T) {
+	t.Setenv("HERALD_NGROK_AUTHTOKEN", "env-token-456")
+
+	content := `
+tunnel:
+  enabled: true
+  provider: "ngrok"
+  authtoken: "yaml-token-123"
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0600))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, "env-token-456", cfg.Tunnel.AuthToken, "env var should override yaml")
+}
+
+func TestLoadFromFile_TunnelEnvVarSetsToken(t *testing.T) {
+	t.Setenv("HERALD_NGROK_AUTHTOKEN", "env-only-token")
+
+	content := `
+tunnel:
+  enabled: true
+  provider: "ngrok"
+`
+	tmpFile := filepath.Join(t.TempDir(), "herald.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0600))
+
+	cfg, err := LoadFromFile(tmpFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, "env-only-token", cfg.Tunnel.AuthToken)
+}
