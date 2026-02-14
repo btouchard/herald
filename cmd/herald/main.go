@@ -192,19 +192,21 @@ func printBanner(cfg *config.Config, tunnelURL string) {
 		fmt.Fprintf(os.Stderr, "  Projects:        (none)\n")
 	}
 
-	// OAuth
+	// Custom Connector setup
+	mcpURL := ""
+	if tunnelURL != "" {
+		mcpURL = tunnelURL + "/mcp"
+	} else if cfg.Server.PublicURL != "" {
+		mcpURL = cfg.Server.PublicURL + "/mcp"
+	} else {
+		mcpURL = fmt.Sprintf("http://%s/mcp", addr)
+	}
+
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "  Custom Connector (OAuth 2.1):\n")
+	fmt.Fprintf(os.Stderr, "  Custom Connector (Claude Chat):\n")
+	fmt.Fprintf(os.Stderr, "    URL:           %s\n", mcpURL)
 	fmt.Fprintf(os.Stderr, "    Client ID:     %s\n", cfg.Auth.ClientID)
 	fmt.Fprintf(os.Stderr, "    Client Secret: %s\n", cfg.Auth.ClientSecret)
-	if len(cfg.Auth.RedirectURIs) > 0 {
-		fmt.Fprintf(os.Stderr, "    Redirect URIs: %s\n", cfg.Auth.RedirectURIs[0])
-		for _, uri := range cfg.Auth.RedirectURIs[1:] {
-			fmt.Fprintf(os.Stderr, "                   %s\n", uri)
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "    Redirect URIs: (none — auth will fail! see configs/herald.example.yaml)\n")
-	}
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
@@ -322,13 +324,12 @@ func run(ctx context.Context, cfg *config.Config) error {
 			tun = tunnel.NewNgrok(cfg.Tunnel.AuthToken, cfg.Tunnel.Domain)
 			publicURL, err := tun.Start(ctx, addr)
 			if err != nil {
-				slog.Warn("failed to start tunnel, continuing with local server only", "error", err)
-			} else {
-				tunnelURL = publicURL
-				// Override PublicURL with tunnel URL for OAuth metadata
-				cfg.Server.PublicURL = tunnelURL
-				slog.Info("tunnel established", "public_url", tunnelURL)
+				return fmt.Errorf("tunnel failed to start (Herald cannot work without it): %w", err)
 			}
+			tunnelURL = publicURL
+			// Override PublicURL with tunnel URL for OAuth metadata
+			cfg.Server.PublicURL = tunnelURL
+			slog.Info("tunnel established", "public_url", tunnelURL)
 		default:
 			slog.Warn("unknown tunnel provider, ignoring", "provider", cfg.Tunnel.Provider)
 		}
