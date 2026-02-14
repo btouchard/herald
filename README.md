@@ -154,7 +154,7 @@ You (phone, later)         Claude Chat                Herald
 
 ## Quick Start
 
-**Prerequisites**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed, a domain with HTTPS (reverse proxy like Traefik or Caddy).
+**Prerequisites**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed, HTTPS via ngrok (built-in) or a domain with reverse proxy.
 
 **1. Install**
 
@@ -273,6 +273,7 @@ auth:
   redirect_uris:
     - "https://claude.ai/oauth/callback"
     - "https://claude.ai/api/oauth/callback"
+    - "https://claude.ai/api/mcp/auth_callback"
 
 database:
   path: "~/.config/herald/herald.db"
@@ -310,6 +311,12 @@ projects:
       auto_commit: true
       branch_prefix: "herald/"
 
+tunnel:
+  enabled: false               # Set to true to enable ngrok tunnel
+  provider: "ngrok"
+  authtoken: ""                # or set HERALD_NGROK_AUTHTOKEN env var
+  # domain: ""                 # optional: fixed domain (paid ngrok plans)
+
 rate_limit:
   requests_per_minute: 200
   burst: 100
@@ -341,7 +348,7 @@ Herald exposes Claude Code to the network. We take that seriously.
 
 | Layer | Protection |
 |---|---|
-| **Network** | Binds to `127.0.0.1` only. Reverse proxy (Traefik/Caddy) handles TLS. |
+| **Network** | Binds to `127.0.0.1` only. HTTPS via built-in ngrok tunnel or reverse proxy (Traefik/Caddy). |
 | **Auth** | OAuth 2.1 with PKCE. Every request needs a valid Bearer token. |
 | **Tokens** | Access tokens: 1h. Refresh tokens: 30d, rotated on each use. |
 | **Filesystem** | Path traversal protection on all file operations. Symlink escapes blocked. |

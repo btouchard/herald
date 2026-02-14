@@ -154,7 +154,7 @@ Vous (telephone, apres)    Claude Chat                Herald
 
 ## Demarrage rapide
 
-**Prerequis** : [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installe, un domaine avec HTTPS (reverse proxy type Traefik ou Caddy).
+**Prerequis** : [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installe, HTTPS via ngrok (integre) ou un domaine avec reverse proxy.
 
 **1. Installer**
 
@@ -222,6 +222,38 @@ Puis connectez-vous depuis Claude Chat :
 3. Authentifiez-vous via OAuth
 4. C'est fait — Claude Chat dispose maintenant de 10 outils pour piloter votre machine
 
+### Demarrage rapide avec ngrok (pas de reverse proxy)
+
+Pas de domaine ni de reverse proxy ? Utilisez ngrok pour exposer Herald en HTTPS instantanement :
+
+**1. Obtenir un token ngrok**
+
+Inscrivez-vous sur [ngrok.com](https://ngrok.com) (le plan gratuit suffit) et recuperez votre token depuis le [dashboard](https://dashboard.ngrok.com/get-started/your-authtoken).
+
+**2. Activer le tunnel dans la config**
+
+Editez `~/.config/herald/herald.yaml` :
+
+```yaml
+tunnel:
+  enabled: true
+  provider: "ngrok"
+  authtoken: "2abc..."  # ou definir la var env HERALD_NGROK_AUTHTOKEN
+  # domain: "my-herald.ngrok-free.app"  # optionnel : domaine fixe (plans payants)
+```
+
+**3. Lancer Herald**
+
+```bash
+herald serve
+# L'URL du tunnel apparait dans la banniere :
+#   Tunnel: https://abc123.ngrok-free.app (ngrok)
+```
+
+Connectez-vous depuis Claude Chat avec l'URL ngrok affichee. C'est tout — pas de Traefik, Caddy, ou config DNS.
+
+> **Note** : le tunnel ngrok est **optionnel**. Si vous avez deja un reverse proxy (Traefik/Caddy), laissez `tunnel.enabled: false` et utilisez votre domaine comme d'habitude.
+
 <details>
 <summary><strong>Reference de configuration complete</strong></summary>
 
@@ -241,6 +273,7 @@ auth:
   redirect_uris:
     - "https://claude.ai/oauth/callback"
     - "https://claude.ai/api/oauth/callback"
+    - "https://claude.ai/api/mcp/auth_callback"
 
 database:
   path: "~/.config/herald/herald.db"
@@ -278,6 +311,12 @@ projects:
       auto_commit: true
       branch_prefix: "herald/"
 
+tunnel:
+  enabled: false               # Mettre a true pour activer le tunnel ngrok
+  provider: "ngrok"
+  authtoken: ""                # ou definir la var env HERALD_NGROK_AUTHTOKEN
+  # domain: ""                 # optionnel : domaine fixe (plans ngrok payants)
+
 rate_limit:
   requests_per_minute: 200
   burst: 100
@@ -309,7 +348,7 @@ Herald expose Claude Code sur le reseau. On prend ca au serieux.
 
 | Couche | Protection |
 |---|---|
-| **Reseau** | Ecoute sur `127.0.0.1` uniquement. Reverse proxy (Traefik/Caddy) gere le TLS. |
+| **Reseau** | Ecoute sur `127.0.0.1` uniquement. HTTPS via tunnel ngrok integre ou reverse proxy (Traefik/Caddy). |
 | **Auth** | OAuth 2.1 avec PKCE. Chaque requete necessite un Bearer token valide. |
 | **Tokens** | Access tokens : 1h. Refresh tokens : 30j, rotation a chaque utilisation. |
 | **Filesystem** | Protection path traversal sur toutes les operations fichier. Echappement symlink bloque. |

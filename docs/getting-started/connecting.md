@@ -1,6 +1,6 @@
 # Connecting from Claude Chat
 
-Once Herald is running and accessible via HTTPS, connect it to Claude Chat using Custom Connectors.
+Once Herald is running and accessible via HTTPS (either through ngrok or a reverse proxy), connect it to Claude Chat using Custom Connectors.
 
 ## Step-by-Step
 
@@ -14,8 +14,13 @@ In Claude Chat (web or mobile):
 
 | Field | Value |
 |---|---|
-| **Server URL** | `https://herald.yourdomain.com/mcp` |
+| **Server URL** | Your Herald MCP URL (see below) |
 | **Name** | Herald (or whatever you prefer) |
+
+The Server URL depends on your setup:
+
+- **ngrok tunnel**: Copy the URL from the startup banner (e.g. `https://abc123.ngrok-free.app/mcp`)
+- **Custom domain**: `https://herald.yourdomain.com/mcp`
 
 ### 3. Authenticate
 
@@ -64,7 +69,15 @@ With Herald connected, Claude Chat gains these capabilities:
 ### "Authorization failed"
 
 - Verify `client_id` and `client_secret` match between Herald config and the connector
-- Check that `redirect_uris` includes `https://claude.ai/oauth/callback`
+- Check that `redirect_uris` includes all required URIs — especially `https://claude.ai/api/mcp/auth_callback` (this is the URI Claude.ai actually sends during Custom Connector authentication)
+- If you upgraded from v0.1.0, add the missing redirect URI to your config:
+  ```yaml
+  auth:
+    redirect_uris:
+      - "https://claude.ai/oauth/callback"
+      - "https://claude.ai/api/oauth/callback"
+      - "https://claude.ai/api/mcp/auth_callback"  # required since v0.1.1
+  ```
 - Look at Herald's logs for auth errors: `./bin/herald serve` with `log_level: debug`
 
 ### "No tools discovered"

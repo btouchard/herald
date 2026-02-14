@@ -24,7 +24,7 @@ server:
 ```
 
 !!! warning "Always bind to localhost"
-    Herald **must** bind to `127.0.0.1`. Never use `0.0.0.0`. Use a reverse proxy like [Traefik](../deployment/traefik.md) for external HTTPS access.
+    Herald **must** bind to `127.0.0.1`. Never use `0.0.0.0`. For external HTTPS access, use the [built-in ngrok tunnel](#tunnel) or a reverse proxy like [Traefik](../deployment/traefik.md).
 
 ### Auth
 
@@ -37,6 +37,7 @@ auth:
   redirect_uris:
     - "https://claude.ai/oauth/callback"
     - "https://claude.ai/api/oauth/callback"
+    - "https://claude.ai/api/mcp/auth_callback"
 ```
 
 | Field | Default | Description |
@@ -45,7 +46,7 @@ auth:
 | `client_secret` | auto-generated | OAuth client secret. Auto-generated and stored in `~/.config/herald/secret`. Override with `HERALD_CLIENT_SECRET` env var. |
 | `access_token_ttl` | `1h` | Access token lifetime |
 | `refresh_token_ttl` | `720h` | Refresh token lifetime (30 days) |
-| `redirect_uris` | — | Allowed OAuth redirect URIs (exact match) |
+| `redirect_uris` | — | Allowed OAuth redirect URIs (exact match). Must include `https://claude.ai/api/mcp/auth_callback` for Custom Connectors to work. |
 
 !!! tip "Secret management"
     The client secret is auto-generated on first run and persisted in `~/.config/herald/secret` (mode 0600). To rotate it, run `herald rotate-secret`. To override, set the `HERALD_CLIENT_SECRET` environment variable.
@@ -142,6 +143,26 @@ rate_limit:
 
 Per-token rate limiting using the token bucket algorithm. Applied to all MCP and API endpoints.
 
+### Tunnel
+
+```yaml
+tunnel:
+  enabled: false               # Set to true to enable ngrok tunnel
+  provider: "ngrok"            # Only "ngrok" is supported for now
+  authtoken: ""                # ngrok auth token (prefer HERALD_NGROK_AUTHTOKEN env var)
+  domain: ""                   # Optional: fixed ngrok domain (paid plans)
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable the built-in ngrok tunnel |
+| `provider` | `"ngrok"` | Tunnel provider (only `ngrok` supported) |
+| `authtoken` | — | ngrok auth token. Prefer using `HERALD_NGROK_AUTHTOKEN` env var. Get yours at [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken). |
+| `domain` | — | Fixed ngrok domain (e.g. `my-herald.ngrok-free.app`). Requires a paid ngrok plan. If empty, ngrok assigns a random URL. |
+
+!!! tip "ngrok replaces the reverse proxy"
+    When `tunnel.enabled` is `true`, Herald automatically starts an ngrok tunnel and uses the tunnel URL as `public_url`. You don't need Traefik, Caddy, or any DNS setup. The tunnel URL is displayed in the startup banner.
+
 ## Environment Variable Substitution
 
 Any value in `herald.yaml` can reference an environment variable:
@@ -152,6 +173,13 @@ auth:
 ```
 
 Herald expands `${VAR}` at load time. If the variable is not set, the value remains as the literal string `${VAR}`.
+
+Common environment variables:
+
+| Variable | Description |
+|---|---|
+| `HERALD_CLIENT_SECRET` | Override the auto-generated OAuth client secret |
+| `HERALD_NGROK_AUTHTOKEN` | ngrok auth token (avoids storing it in the YAML file) |
 
 ## What's Next
 

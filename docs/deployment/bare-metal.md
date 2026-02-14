@@ -26,7 +26,27 @@ cp configs/herald.example.yaml ~/.config/herald/herald.yaml
 
 Edit `~/.config/herald/herald.yaml` with your domain and projects. The client secret is auto-generated on first run. See [Configuration](../getting-started/configuration.md) for the full reference.
 
-## systemd Service
+## Running Herald
+
+### Standalone (Recommended)
+
+The simplest and most reliable way to run Herald is in a terminal multiplexer:
+
+```bash
+# Using tmux
+tmux new-session -d -s herald 'herald serve'
+
+# Using screen
+screen -dmS herald herald serve
+
+# Or simply in the foreground
+herald serve
+```
+
+!!! warning "systemd is not recommended"
+    Claude Code requires access to user-level authentication (OAuth tokens, API keys) stored in the user's home directory. When Herald launches Claude Code from a systemd service, these credentials are not available because systemd runs in a different session context. **Use standalone mode (tmux/screen) until this is resolved.**
+
+### systemd Service (Experimental)
 
 Create `/etc/systemd/system/herald.service`:
 
@@ -110,9 +130,26 @@ systemctl status herald
 journalctl -u herald -f --no-pager
 ```
 
-## Reverse Proxy
+## HTTPS Exposure
 
-You still need a reverse proxy for TLS. See:
+Herald needs HTTPS to work with Claude Chat Custom Connectors. You have two options:
+
+### Option A: ngrok tunnel (simplest)
+
+Enable the built-in ngrok tunnel — no DNS, no certificates, no reverse proxy:
+
+```yaml
+tunnel:
+  enabled: true
+  provider: "ngrok"
+  authtoken: "your-token"  # or set HERALD_NGROK_AUTHTOKEN env var
+```
+
+The tunnel URL appears in the startup banner. See [Configuration](../getting-started/configuration.md#tunnel) for details.
+
+### Option B: Reverse proxy
+
+Use a reverse proxy for TLS termination:
 
 - [Traefik](traefik.md) — Docker-based or standalone
 - **Caddy** — `caddy reverse-proxy --from herald.yourdomain.com --to 127.0.0.1:8420`

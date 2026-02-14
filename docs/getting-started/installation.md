@@ -6,8 +6,7 @@
 |---|---|---|
 | **Claude Code CLI** | Latest | [Install docs](https://docs.anthropic.com/en/docs/claude-code) |
 | **Anthropic account** | — | With Claude Code access |
-| **HTTPS domain** | — | Required for Claude Chat Custom Connectors |
-| **Reverse proxy** | — | Traefik or Caddy recommended for TLS termination |
+| **HTTPS exposure** | — | Via ngrok (built-in) **or** a domain + reverse proxy (Traefik/Caddy) |
 
 !!! tip "No Docker required"
     Herald is a single Go binary. Docker is available as an [option](../deployment/docker.md), but running the binary directly gives you native access to Claude Code and your filesystem.
@@ -19,6 +18,8 @@ The quickest way to install Herald. Detects your OS and architecture, downloads 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/btouchard/herald/main/install.sh | sh
 ```
+
+After installation, the script launches an **interactive setup wizard** that walks you through port, exposure method (ngrok / custom domain / local-only), and project configuration. It generates a ready-to-use `herald.yaml`.
 
 To install to a custom directory:
 
@@ -37,6 +38,12 @@ make build
 ```
 
 The binary is at `./bin/herald`. It's statically linked (~15MB) and has zero runtime dependencies.
+
+To install from your local build and run the setup wizard:
+
+```bash
+./install.sh --local
+```
 
 !!! note "Zero CGO"
     Herald compiles with `CGO_ENABLED=0`. No C toolchain needed. Cross-compiles to any Go-supported platform.
