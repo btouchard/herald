@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.btouchard/herald",
+  "description": "Stop copy-pasting between Claude Chat and Claude Code.",
+  "repository": {
+    "url": "https://github.com/btouchard/herald",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "transportType": "sse",
+      "url": "https://your-herald-instance.example.com/mcp",
+      "type": "streamable-http"
+    }
+  ]
+}
