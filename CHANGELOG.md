@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Optional ngrok tunnel integration (`tunnel.enabled` in config) for instant HTTPS exposure without reverse proxy setup
+- Dual-serve architecture: Herald serves both local (`127.0.0.1`) and tunnel (ngrok) listeners with the same router
+- Environment variable `HERALD_NGROK_AUTHTOKEN` for secure token management
 - Configurable model per task (`model` parameter on `start_task`, defaults to Sonnet for cost efficiency)
 - Auto-generated secrets (zero-config auth setup)
 - `herald rotate-secret` subcommand

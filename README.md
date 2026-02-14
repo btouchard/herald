@@ -222,6 +222,38 @@ Then connect from Claude Chat:
 3. Authenticate via OAuth
 4. Done — Claude Chat now has 10 new tools to control your workstation
 
+### Quick Start with ngrok (No Reverse Proxy Needed)
+
+Don't have a domain or reverse proxy? Use ngrok to expose Herald instantly over HTTPS:
+
+**1. Get ngrok auth token**
+
+Sign up at [ngrok.com](https://ngrok.com) (free plan works) and grab your auth token from the [dashboard](https://dashboard.ngrok.com/get-started/your-authtoken).
+
+**2. Enable tunnel in config**
+
+Edit `~/.config/herald/herald.yaml`:
+
+```yaml
+tunnel:
+  enabled: true
+  provider: "ngrok"
+  authtoken: "2abc..."  # or set HERALD_NGROK_AUTHTOKEN env var
+  # domain: "my-herald.ngrok-free.app"  # optional: fixed domain (paid plans)
+```
+
+**3. Run Herald**
+
+```bash
+herald serve
+# Tunnel URL appears in the banner:
+#   Tunnel: https://abc123.ngrok-free.app (ngrok)
+```
+
+Connect from Claude Chat using the ngrok URL shown in the banner. That's it — no Traefik, Caddy, or DNS setup required.
+
+> **Note**: The ngrok tunnel is **optional**. If you already have a reverse proxy (Traefik/Caddy), leave `tunnel.enabled: false` and use your domain as usual.
+
 <details>
 <summary><strong>Full configuration reference</strong></summary>
 
