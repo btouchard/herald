@@ -49,7 +49,7 @@ Claude Chat (mobile/web)
   → Herald Server (Go binary, port 8420)
     → MCP Handler (/mcp)
     → Task Manager (goroutines)
-    → Claude Code Executor (os/exec → claude -p --output-format stream-json)
+    → Executor Registry (pluggable backends, default: Claude Code)
     → SQLite (persistence)
     → MCP Notifications (server push via SSE)
 
@@ -90,10 +90,13 @@ herald/
 │   │       ├── ratelimit.go        # Rate limiting middleware
 │   │       └── security.go         # Security headers middleware
 │   ├── executor/
-│   │   ├── executor.go             # Interface Executor
-│   │   ├── claude.go               # Claude Code executor (os/exec)
-│   │   ├── stream.go               # Parsing stream-json output
-│   │   └── prompt.go               # Prompt file management (work_dir)
+│   │   ├── executor.go             # Interface Executor + Capabilities
+│   │   ├── registry.go             # Pluggable executor registry (Register/Get/Available)
+│   │   ├── kill.go                 # GracefulKill (shared POSIX utility)
+│   │   ├── prompt.go               # Prompt file management (work_dir)
+│   │   └── claude/
+│   │       ├── claude.go           # Claude Code executor (os/exec, auto-registers as "claude-code")
+│   │       └── stream.go           # Parsing stream-json output
 │   ├── task/
 │   │   ├── manager.go              # Task lifecycle management
 │   │   └── task.go                 # Task struct et états

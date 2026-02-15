@@ -368,7 +368,7 @@ Claude Chat (mobile/web)
     ├── MCP Handler (/mcp)
     ├── OAuth 2.1 Server (PKCE, token rotation)
     ├── Task Manager (goroutine pool, priority queue)
-    ├── Claude Code Executor (os/exec, stream-json parsing)
+    ├── Executor Registry (pluggable backends, default: Claude Code)
     ├── SQLite (persistence)
     └── MCP Notifications (server push via SSE)
 ```

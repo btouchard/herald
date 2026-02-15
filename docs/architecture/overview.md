@@ -10,7 +10,7 @@ Claude Chat (mobile/web)
     ├── MCP Handler (/mcp)
     ├── OAuth 2.1 Server (PKCE, token rotation)
     ├── Task Manager (goroutine pool, priority queue)
-    ├── Claude Code Executor (os/exec, stream-json parsing)
+    ├── Executor Registry (pluggable backends, default: Claude Code)
     ├── SQLite (persistence)
     └── MCP Notifications (server push via SSE)
 
@@ -63,7 +63,7 @@ Each `internal/` package is autonomous and communicates with others through inte
 |---|---|---|
 | **MCP Server** | `internal/mcp` | Handles MCP Streamable HTTP requests, registers tools |
 | **Task Manager** | `internal/task` | Task lifecycle, priority queue, goroutine pool |
-| **Executor** | `internal/executor` | Spawns Claude Code via `os/exec`, parses stream-json output |
+| **Executor** | `internal/executor` | Pluggable executor registry. Default: Claude Code (`internal/executor/claude`) |
 | **Store** | `internal/store` | SQLite persistence — tasks, tokens, audit log |
 | **Auth** | `internal/auth` | OAuth 2.1 server with PKCE, JWT tokens, token rotation |
 | **Notify** | `internal/notify` | MCP push notifications (server-initiated via SSE) |
@@ -81,9 +81,10 @@ type Store interface {
     ListTasks(f TaskFilter) ([]TaskRecord, error)
 }
 
-// executor.Executor — task execution
+// executor.Executor — task execution (pluggable via registry)
 type Executor interface {
     Execute(ctx context.Context, req Request, onProgress ProgressFunc) (*Result, error)
+    Capabilities() Capabilities
 }
 
 // notify.Notifier — notification delivery

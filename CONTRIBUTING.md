@@ -55,6 +55,10 @@ Scope is encouraged: `feat(mcp):`, `fix(auth):`, `docs(readme):`
 5. Commit with conventional commit messages
 6. Open a PR against `main`
 
+## Custom Executors
+
+Herald's executor architecture is pluggable. You can implement adapters for other CLI tools (Codex, Gemini CLI, Aider, etc.) by implementing the `executor.Executor` interface and registering via `init()`. See [`docs/guide/custom-executor.md`](docs/guide/custom-executor.md) for a complete guide.
+
 ## Code Style
 
 - Go 1.26 standard formatting (`gofmt`)
