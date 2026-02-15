@@ -31,7 +31,7 @@ func TestGenerateID_IsUnique(t *testing.T) {
 func TestNew_SetsDefaults(t *testing.T) {
 	t.Parallel()
 
-	task := New("my-project", "fix the bug", "", 0, 0)
+	task := New("my-project", "fix the bug", "", "", 0, 0)
 
 	assert.Equal(t, "my-project", task.Project)
 	assert.Equal(t, "fix the bug", task.Prompt)
@@ -44,7 +44,7 @@ func TestNew_SetsDefaults(t *testing.T) {
 func TestNew_RespectsExplicitValues(t *testing.T) {
 	t.Parallel()
 
-	task := New("proj", "do it", PriorityUrgent, 60, 0)
+	task := New("proj", "do it", "", PriorityUrgent, 60, 0)
 
 	assert.Equal(t, PriorityUrgent, task.Priority)
 	assert.Equal(t, 60, task.TimeoutMinutes)
@@ -53,7 +53,7 @@ func TestNew_RespectsExplicitValues(t *testing.T) {
 func TestSetStatus_UpdatesTimestamps(t *testing.T) {
 	t.Parallel()
 
-	task := New("p", "x", PriorityNormal, 30, 0)
+	task := New("p", "x", "", PriorityNormal, 30, 0)
 
 	task.SetStatus(StatusRunning)
 	assert.Equal(t, StatusRunning, task.Status)
@@ -67,7 +67,7 @@ func TestSetStatus_UpdatesTimestamps(t *testing.T) {
 func TestSetStatus_ClosesDoneChannel(t *testing.T) {
 	t.Parallel()
 
-	task := New("p", "x", PriorityNormal, 30, 0)
+	task := New("p", "x", "", PriorityNormal, 30, 0)
 
 	select {
 	case <-task.Done():
@@ -101,7 +101,7 @@ func TestIsTerminal(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		task := New("p", "x", PriorityNormal, 30, 0)
+		task := New("p", "x", "", PriorityNormal, 30, 0)
 		task.Status = tt.status
 		assert.Equal(t, tt.terminal, task.IsTerminal(), "status %s", tt.status)
 	}
@@ -110,7 +110,7 @@ func TestIsTerminal(t *testing.T) {
 func TestSnapshot_ReturnsCopy(t *testing.T) {
 	t.Parallel()
 
-	task := New("proj", "prompt", PriorityHigh, 15, 0)
+	task := New("proj", "prompt", "", PriorityHigh, 15, 0)
 	task.SetStatus(StatusRunning)
 	task.SetProgress("working...")
 	task.SetCost(0.42)
@@ -159,7 +159,7 @@ func TestSnapshot_FormatDuration_WhenShort(t *testing.T) {
 func TestAppendOutput_Accumulates(t *testing.T) {
 	t.Parallel()
 
-	task := New("p", "x", PriorityNormal, 30, 0)
+	task := New("p", "x", "", PriorityNormal, 30, 0)
 	task.AppendOutput("hello ")
 	task.AppendOutput("world")
 
@@ -170,7 +170,7 @@ func TestAppendOutput_Accumulates(t *testing.T) {
 func TestAppendOutput_WhenBounded_TruncatesOldContent(t *testing.T) {
 	t.Parallel()
 
-	task := New("p", "x", PriorityNormal, 30, 10) // 10 bytes max
+	task := New("p", "x", "", PriorityNormal, 30, 10) // 10 bytes max
 	task.AppendOutput("12345")
 	task.AppendOutput("67890")
 	task.AppendOutput("ABCDE")
@@ -183,9 +183,36 @@ func TestAppendOutput_WhenBounded_TruncatesOldContent(t *testing.T) {
 func TestSetStatus_DoubleClose_DoesNotPanic(t *testing.T) {
 	t.Parallel()
 
-	task := New("p", "x", PriorityNormal, 30, 0)
+	task := New("p", "x", "", PriorityNormal, 30, 0)
 	require.NotPanics(t, func() {
 		task.SetStatus(StatusCompleted)
 		task.SetStatus(StatusCompleted)
 	})
+}
+
+func TestNew_WithContext_StoresContext(t *testing.T) {
+	t.Parallel()
+
+	task := New("proj", "do task", "fixing auth bug from mobile", PriorityNormal, 30, 0)
+
+	assert.Equal(t, "fixing auth bug from mobile", task.Context)
+}
+
+func TestNew_WithEmptyContext_AllowsEmpty(t *testing.T) {
+	t.Parallel()
+
+	task := New("proj", "do task", "", PriorityNormal, 30, 0)
+
+	assert.Equal(t, "", task.Context)
+}
+
+func TestSnapshot_IncludesContext(t *testing.T) {
+	t.Parallel()
+
+	task := New("proj", "prompt", "working on feature X", PriorityHigh, 15, 0)
+	task.SetStatus(StatusRunning)
+
+	snap := task.Snapshot()
+
+	assert.Equal(t, "working on feature X", snap.Context)
 }

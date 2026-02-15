@@ -110,7 +110,7 @@ func (s *SQLiteStore) CreateTask(t *TaskRecord) error {
 }
 
 func (s *SQLiteStore) GetTask(id string) (*TaskRecord, error) {
-	row := s.db.QueryRow(`SELECT id, type, project, prompt, status, priority, session_id, pid,
+	row := s.db.QueryRow(`SELECT id, type, project, prompt, context, status, priority, session_id, pid,
 		git_branch, output, progress, error, cost_usd, turns, timeout_minutes, dry_run,
 		created_at, started_at, completed_at
 		FROM tasks WHERE id = ?`, id)
@@ -136,7 +136,7 @@ func (s *SQLiteStore) UpdateTask(t *TaskRecord) error {
 }
 
 func (s *SQLiteStore) ListTasks(f TaskFilter) ([]TaskRecord, error) {
-	query := "SELECT id, type, project, prompt, status, priority, session_id, pid, git_branch, output, progress, error, cost_usd, turns, timeout_minutes, dry_run, created_at, started_at, completed_at FROM tasks WHERE 1=1"
+	query := "SELECT id, type, project, prompt, context, status, priority, session_id, pid, git_branch, output, progress, error, cost_usd, turns, timeout_minutes, dry_run, created_at, started_at, completed_at FROM tasks WHERE 1=1"
 	var args []interface{}
 
 	if f.Status != "" && f.Status != "all" {
@@ -177,7 +177,7 @@ func (s *SQLiteStore) ListTasks(f TaskFilter) ([]TaskRecord, error) {
 }
 
 func (s *SQLiteStore) GetLinkedTaskBySessionID(sessionID string) (*TaskRecord, error) {
-	row := s.db.QueryRow(`SELECT id, type, project, prompt, status, priority, session_id, pid,
+	row := s.db.QueryRow(`SELECT id, type, project, prompt, context, status, priority, session_id, pid,
 		git_branch, output, progress, error, cost_usd, turns, timeout_minutes, dry_run,
 		created_at, started_at, completed_at
 		FROM tasks WHERE session_id = ? AND status = 'linked'
@@ -355,7 +355,7 @@ func scanTask(row *sql.Row) (*TaskRecord, error) {
 	var dryRun int
 	var createdAt, startedAt, completedAt string
 
-	err := row.Scan(&t.ID, &t.Type, &t.Project, &t.Prompt, &t.Status, &t.Priority,
+	err := row.Scan(&t.ID, &t.Type, &t.Project, &t.Prompt, &t.Context, &t.Status, &t.Priority,
 		&t.SessionID, &t.PID, &t.GitBranch, &t.Output, &t.Progress, &t.Error,
 		&t.CostUSD, &t.Turns, &t.TimeoutMinutes, &dryRun,
 		&createdAt, &startedAt, &completedAt)
@@ -376,7 +376,7 @@ func scanTaskRows(rows *sql.Rows) (*TaskRecord, error) {
 	var dryRun int
 	var createdAt, startedAt, completedAt string
 
-	err := rows.Scan(&t.ID, &t.Type, &t.Project, &t.Prompt, &t.Status, &t.Priority,
+	err := rows.Scan(&t.ID, &t.Type, &t.Project, &t.Prompt, &t.Context, &t.Status, &t.Priority,
 		&t.SessionID, &t.PID, &t.GitBranch, &t.Output, &t.Progress, &t.Error,
 		&t.CostUSD, &t.Turns, &t.TimeoutMinutes, &dryRun,
 		&createdAt, &startedAt, &completedAt)

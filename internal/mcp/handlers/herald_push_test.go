@@ -182,7 +182,7 @@ func TestListTasks_WhenLinkedTaskExists_ShowsWithLinkIndicator(t *testing.T) {
 	tm, _ := newTestDeps()
 
 	// Create a regular task
-	tm.Create("test", "regular task", task.PriorityNormal, 30)
+	tm.Create("test", "regular task", "", task.PriorityNormal, 30)
 
 	// Create a linked task
 	pushHandler := HeraldPush(tm)

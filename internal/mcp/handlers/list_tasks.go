@@ -42,6 +42,9 @@ func ListTasks(tm *task.Manager) server.ToolHandlerFunc {
 		for _, t := range tasks {
 			icon := statusIcon(t.Status)
 			sb.WriteString(fmt.Sprintf("%s **%s** — %s\n", icon, t.ID, t.Status))
+			if t.Context != "" {
+				sb.WriteString(fmt.Sprintf("  Context: %s\n", t.Context))
+			}
 			sb.WriteString(fmt.Sprintf("  Project: %s | Priority: %s\n", t.Project, t.Priority))
 
 			if t.Status == task.StatusRunning {

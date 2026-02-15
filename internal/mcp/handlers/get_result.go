@@ -64,6 +64,9 @@ func formatSummary(snap task.TaskSnapshot) (*mcp.CallToolResult, error) {
 	}
 
 	fmt.Fprintf(&b, "- ID: %s\n", snap.ID)
+	if snap.Context != "" {
+		fmt.Fprintf(&b, "- Context: %s\n", snap.Context)
+	}
 	fmt.Fprintf(&b, "- Project: %s\n", snap.Project)
 	if snap.Model != "" {
 		fmt.Fprintf(&b, "- Model: %s\n", snap.Model)
@@ -97,6 +100,9 @@ func formatFull(snap task.TaskSnapshot) (*mcp.CallToolResult, error) {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "Task %s — %s\n", snap.ID, snap.Status)
+	if snap.Context != "" {
+		fmt.Fprintf(&b, "Context: %s\n", snap.Context)
+	}
 	fmt.Fprintf(&b, "Project: %s | Duration: %s", snap.Project, snap.FormatDuration())
 	if snap.CostUSD > 0 {
 		fmt.Fprintf(&b, " | Cost: $%.2f", snap.CostUSD)

@@ -141,7 +141,7 @@ func TestGetDiff_WhenTaskWithProjectNotInManager_ReturnsProjectError(t *testing.
 	tm := task.NewManager(&mockExecutor{}, 3, 2*time.Hour)
 	handler := GetDiff(tm, pm)
 
-	tsk := tm.Create("unknown-project", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("unknown-project", "work", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"task_id": tsk.ID,
@@ -179,7 +179,7 @@ func TestGetDiff_WhenTaskHasProject_UsesTaskProject(t *testing.T) {
 	tm, pm := newDiffTestDeps(repoPath)
 	handler := GetDiff(tm, pm)
 
-	tsk := tm.Create("test-repo", "some task", task.PriorityNormal, 30)
+	tsk := tm.Create("test-repo", "some task", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"task_id": tsk.ID,
@@ -411,7 +411,7 @@ func TestGetResult_WhenTaskFailed_ShowsError(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetError("claude exited with code 1")
 	tsk.SetStatus(task.StatusFailed)
@@ -431,7 +431,7 @@ func TestGetResult_WhenTaskCancelled_ShowsCancelled(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCancelled)
 
@@ -449,7 +449,7 @@ func TestGetResult_WhenFormatFull_WithCostAndError_ShowsAll(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetCost(0.50)
 	tsk.SetError("partial failure")
@@ -474,7 +474,7 @@ func TestGetResult_WhenTaskPending_InformsUserStillPending(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"task_id": tsk.ID,
@@ -490,7 +490,7 @@ func TestGetResult_WhenCompletedWithSessionID_ShowsSessionID(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetSessionID("ses_completed")
 	tsk.SetTurns(8)
@@ -513,9 +513,9 @@ func TestListTasks_WhenFilterByProject_ReturnsMatching(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tm.Create("project-a", "task 1", task.PriorityNormal, 30)
-	tm.Create("project-b", "task 2", task.PriorityNormal, 30)
-	tm.Create("project-a", "task 3", task.PriorityNormal, 30)
+	tm.Create("project-a", "task 1", "", task.PriorityNormal, 30)
+	tm.Create("project-b", "task 2", "", task.PriorityNormal, 30)
+	tm.Create("project-a", "task 3", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"project": "project-a",
@@ -531,7 +531,7 @@ func TestListTasks_WhenRunningTask_ShowsDurationAndProgress(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetProgress("fixing auth bug")
 
@@ -548,7 +548,7 @@ func TestListTasks_WhenCompletedTask_ShowsCost(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetCost(0.75)
 	tsk.SetStatus(task.StatusCompleted)
@@ -565,7 +565,7 @@ func TestListTasks_WhenFailedTaskWithError_ShowsError(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetError("timeout exceeded")
 	tsk.SetStatus(task.StatusFailed)
@@ -584,7 +584,7 @@ func TestGetLogs_WhenTaskHasSessionAndCost_ShowsAll(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetLogs(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetSessionID("ses_logs")
 	tsk.SetCost(0.42)
@@ -610,7 +610,7 @@ func TestGetLogs_WhenLimitProvided_RespectsIt(t *testing.T) {
 	handler := GetLogs(tm)
 
 	for range 5 {
-		tm.Create("test", "task", task.PriorityNormal, 30)
+		tm.Create("test", "task", "", task.PriorityNormal, 30)
 	}
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
@@ -629,7 +629,7 @@ func TestCheckTask_WhenRunning_ShowsProgressAndCost(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetProgress("editing files")
 	tsk.SetCost(0.15)
@@ -650,7 +650,7 @@ func TestCheckTask_WhenFailed_ShowsError(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetError("claude crashed")
 	tsk.SetStatus(task.StatusFailed)
@@ -670,7 +670,7 @@ func TestCheckTask_WhenCancelled_ShowsCancelled(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCancelled)
 
@@ -690,7 +690,7 @@ func TestCancelTask_WhenAlreadyCompleted_ReturnsError(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CancelTask(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCompleted)
 

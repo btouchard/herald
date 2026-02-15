@@ -404,3 +404,70 @@ func TestSQLiteStore_GetAverageTaskDuration_WhenHistory_ReturnsAverage(t *testin
 	// Average of 60s and 120s = 90s
 	assert.InDelta(t, 90*time.Second, avg, float64(2*time.Second), "average should be ~90s")
 }
+
+func TestSQLiteStore_Context_PersistsAcrossRoundtrip(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	now := time.Now().Truncate(time.Second)
+	task := &TaskRecord{
+		ID:             "herald-ctx00001",
+		Project:        "my-api",
+		Prompt:         "fix auth bug",
+		Context:        "fixing login issue from mobile app",
+		Status:         "pending",
+		Priority:       "high",
+		TimeoutMinutes: 30,
+		CreatedAt:      now,
+	}
+
+	require.NoError(t, s.CreateTask(task))
+
+	got, err := s.GetTask("herald-ctx00001")
+	require.NoError(t, err)
+	assert.Equal(t, "fixing login issue from mobile app", got.Context)
+}
+
+func TestSQLiteStore_Context_AllowsEmptyContext(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	now := time.Now().Truncate(time.Second)
+	task := &TaskRecord{
+		ID:             "herald-ctx00002",
+		Project:        "proj",
+		Prompt:         "do task",
+		Context:        "",
+		Status:         "pending",
+		Priority:       "normal",
+		TimeoutMinutes: 30,
+		CreatedAt:      now,
+	}
+
+	require.NoError(t, s.CreateTask(task))
+
+	got, err := s.GetTask("herald-ctx00002")
+	require.NoError(t, err)
+	assert.Equal(t, "", got.Context)
+}
+
+func TestSQLiteStore_ListTasks_IncludesContext(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	now := time.Now().Truncate(time.Second)
+	require.NoError(t, s.CreateTask(&TaskRecord{
+		ID:        "herald-ctx00003",
+		Project:   "p",
+		Prompt:    "a",
+		Context:   "working on feature X",
+		Status:    "completed",
+		Priority:  "normal",
+		CreatedAt: now,
+	}))
+
+	tasks, err := s.ListTasks(TaskFilter{})
+	require.NoError(t, err)
+	require.Len(t, tasks, 1)
+	assert.Equal(t, "working on feature X", tasks[0].Context)
+}

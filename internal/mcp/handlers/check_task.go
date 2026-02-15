@@ -93,6 +93,10 @@ func isTerminalStatus(s task.Status) bool {
 func formatCheckResponse(snap task.TaskSnapshot, includeOutput bool, outputLines int) string {
 	var b strings.Builder
 
+	if snap.Context != "" {
+		fmt.Fprintf(&b, "Context: %s\n\n", snap.Context)
+	}
+
 	switch snap.Status {
 	case task.StatusPending, task.StatusQueued:
 		fmt.Fprintf(&b, "Status: %s\n", snap.Status)

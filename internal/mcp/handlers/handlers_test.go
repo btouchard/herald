@@ -20,7 +20,7 @@ func TestCheckTask_WhenTaskExists_ReturnsStatus(t *testing.T) {
 	handler := CheckTask(tm)
 
 	// Create a task via manager
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"task_id": tsk.ID,
@@ -62,7 +62,7 @@ func TestCheckTask_WhenCompleted_ShowsCostAndTurns(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetCost(0.42)
 	tsk.SetTurns(5)
@@ -86,7 +86,7 @@ func TestCheckTask_WhenIncludeOutput_ShowsOutput(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.AppendOutput("line 1\nline 2\nline 3\n")
 	tsk.SetStatus(task.StatusCompleted)
@@ -109,7 +109,7 @@ func TestCheckTask_WhenWaitZero_ReturnsImmediately(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	start := time.Now()
@@ -130,7 +130,7 @@ func TestCheckTask_WhenWaitOnCompletedTask_ReturnsImmediately(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCompleted)
 
@@ -152,7 +152,7 @@ func TestCheckTask_WhenWaitAndTaskCompletesDuringWait_ReturnsOnCompletion(t *tes
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	// Complete the task after 300ms
@@ -180,7 +180,7 @@ func TestCheckTask_WhenWaitAndOnlyProgressChanges_WaitsUntilTimeout(t *testing.T
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetProgress("step 1")
 
@@ -209,7 +209,7 @@ func TestCheckTask_WhenWaitAndStatusChanges_ReturnsEarly(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	// Change status after 300ms — SHOULD cause early return
@@ -237,7 +237,7 @@ func TestCheckTask_WhenWaitExceedsMax_ClampsToMax(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CheckTask(tm)
 
-	tsk := tm.Create("test", "do something", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "do something", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	// Request 60s wait (exceeds max of 30), should be clamped.
@@ -262,7 +262,7 @@ func TestGetResult_WhenTaskCompleted_ReturnsSummary(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix the bug", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix the bug", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetCost(0.34)
 	tsk.AppendOutput("Fixed the auth bug by updating token validation.")
@@ -296,7 +296,7 @@ func TestGetResult_WhenTaskStillRunning_InformsUser(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
@@ -313,7 +313,7 @@ func TestGetResult_WhenFormatFull_ReturnsFullOutput(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.AppendOutput("Full output content here.")
 	tsk.SetStatus(task.StatusCompleted)
@@ -334,7 +334,7 @@ func TestGetResult_WhenFormatJSON_ReturnsJSON(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetResult(tm)
 
-	tsk := tm.Create("test", "fix", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "fix", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCompleted)
 
@@ -356,7 +356,7 @@ func TestCancelTask_WhenRunning_CancelsSuccessfully(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := CancelTask(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
@@ -413,8 +413,8 @@ func TestListTasks_WhenTasksExist_ListsThem(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tm.Create("test", "task 1", task.PriorityNormal, 30)
-	tm.Create("test", "task 2", task.PriorityHigh, 30)
+	tm.Create("test", "task 1", "", task.PriorityNormal, 30)
+	tm.Create("test", "task 2", "", task.PriorityHigh, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{}))
 	require.NoError(t, err)
@@ -429,10 +429,10 @@ func TestListTasks_WhenFilterByStatus_ReturnsMatching(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := ListTasks(tm)
 
-	tsk := tm.Create("test", "task 1", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "task 1", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetStatus(task.StatusCompleted)
-	tm.Create("test", "task 2", task.PriorityNormal, 30) // stays pending
+	tm.Create("test", "task 2", "", task.PriorityNormal, 30) // stays pending
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
 		"status": "pending",
@@ -449,7 +449,7 @@ func TestListTasks_WhenLimitSet_RespectsIt(t *testing.T) {
 	handler := ListTasks(tm)
 
 	for range 5 {
-		tm.Create("test", "task", task.PriorityNormal, 30)
+		tm.Create("test", "task", "", task.PriorityNormal, 30)
 	}
 
 	result, err := handler(context.Background(), makeReq(map[string]any{
@@ -468,7 +468,7 @@ func TestGetLogs_WhenTaskExists_ShowsLogs(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetLogs(tm)
 
-	tsk := tm.Create("test", "work", task.PriorityNormal, 30)
+	tsk := tm.Create("test", "work", "", task.PriorityNormal, 30)
 	tsk.SetStatus(task.StatusRunning)
 	tsk.SetProgress("fixing bugs")
 	tsk.SetCost(0.15)
@@ -504,9 +504,9 @@ func TestGetLogs_WhenNoTaskID_ShowsRecentActivity(t *testing.T) {
 	tm, _ := newTestDeps()
 	handler := GetLogs(tm)
 
-	tm.Create("test", "task 1", task.PriorityNormal, 30)
+	tm.Create("test", "task 1", "", task.PriorityNormal, 30)
 	time.Sleep(10 * time.Millisecond) // ensure ordering
-	tm.Create("test", "task 2", task.PriorityNormal, 30)
+	tm.Create("test", "task 2", "", task.PriorityNormal, 30)
 
 	result, err := handler(context.Background(), makeReq(map[string]any{}))
 	require.NoError(t, err)

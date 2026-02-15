@@ -54,7 +54,7 @@ func TestManager_Create_ReturnsTask(t *testing.T) {
 
 	m := NewManager(&mockExecutor{}, 3, 2*time.Hour)
 
-	task := m.Create("proj", "do something", PriorityNormal, 30)
+	task := m.Create("proj", "do something", "", PriorityNormal, 30)
 
 	assert.NotEmpty(t, task.ID)
 	assert.Equal(t, "proj", task.Project)
@@ -65,7 +65,7 @@ func TestManager_Get_ReturnsTask(t *testing.T) {
 	t.Parallel()
 
 	m := NewManager(&mockExecutor{}, 3, 2*time.Hour)
-	created := m.Create("proj", "do something", PriorityNormal, 30)
+	created := m.Create("proj", "do something", "", PriorityNormal, 30)
 
 	found, err := m.Get(created.ID)
 	require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestManager_StartAndComplete(t *testing.T) {
 	m := NewManager(mock, 3, 2*time.Hour)
 	ctx := context.Background()
 
-	task := m.Create("proj", "fix bug", PriorityNormal, 30)
+	task := m.Create("proj", "fix bug", "", PriorityNormal, 30)
 	err := m.Start(ctx, task, executor.Request{
 		TaskID:      task.ID,
 		Prompt:      "fix bug",
@@ -126,7 +126,7 @@ func TestManager_StartAndFail(t *testing.T) {
 	m := NewManager(mock, 3, 2*time.Hour)
 	ctx := context.Background()
 
-	task := m.Create("proj", "bad task", PriorityNormal, 30)
+	task := m.Create("proj", "bad task", "", PriorityNormal, 30)
 	err := m.Start(ctx, task, executor.Request{
 		TaskID: task.ID,
 		Prompt: "bad task",
@@ -149,7 +149,7 @@ func TestManager_Cancel(t *testing.T) {
 	m := NewManager(mock, 3, 2*time.Hour)
 	ctx := context.Background()
 
-	task := m.Create("proj", "long task", PriorityNormal, 30)
+	task := m.Create("proj", "long task", "", PriorityNormal, 30)
 	err := m.Start(ctx, task, executor.Request{
 		TaskID: task.ID,
 		Prompt: "long task",
@@ -177,7 +177,7 @@ func TestManager_Cancel_ErrorOnTerminalTask(t *testing.T) {
 	m := NewManager(mock, 3, 2*time.Hour)
 	ctx := context.Background()
 
-	task := m.Create("proj", "quick", PriorityNormal, 30)
+	task := m.Create("proj", "quick", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "quick"}, 0))
 	<-task.Done()
 
@@ -190,8 +190,8 @@ func TestManager_List_FiltersbyStatus(t *testing.T) {
 	t.Parallel()
 
 	m := NewManager(&mockExecutor{}, 3, 2*time.Hour)
-	t1 := m.Create("proj", "one", PriorityNormal, 30)
-	t2 := m.Create("proj", "two", PriorityNormal, 30)
+	t1 := m.Create("proj", "one", "", PriorityNormal, 30)
+	t2 := m.Create("proj", "two", "", PriorityNormal, 30)
 	t1.SetStatus(StatusCompleted)
 	t2.SetStatus(StatusFailed)
 
@@ -207,9 +207,9 @@ func TestManager_List_FiltersByProject(t *testing.T) {
 	t.Parallel()
 
 	m := NewManager(&mockExecutor{}, 3, 2*time.Hour)
-	m.Create("alpha", "task1", PriorityNormal, 30)
-	m.Create("beta", "task2", PriorityNormal, 30)
-	m.Create("alpha", "task3", PriorityNormal, 30)
+	m.Create("alpha", "task1", "", PriorityNormal, 30)
+	m.Create("beta", "task2", "", PriorityNormal, 30)
+	m.Create("alpha", "task3", "", PriorityNormal, 30)
 
 	result := m.List(Filter{Project: "alpha"})
 	assert.Len(t, result, 2)
@@ -220,7 +220,7 @@ func TestManager_List_RespectsLimit(t *testing.T) {
 
 	m := NewManager(&mockExecutor{}, 3, 2*time.Hour)
 	for range 5 {
-		m.Create("proj", "task", PriorityNormal, 30)
+		m.Create("proj", "task", "", PriorityNormal, 30)
 	}
 
 	result := m.List(Filter{Limit: 3})
@@ -236,7 +236,7 @@ func TestManager_RunningCount(t *testing.T) {
 
 	assert.Equal(t, 0, m.RunningCount())
 
-	task := m.Create("proj", "long", PriorityNormal, 30)
+	task := m.Create("proj", "long", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, task, executor.Request{TaskID: task.ID, Prompt: "long"}, 0))
 
 	time.Sleep(50 * time.Millisecond)
@@ -256,17 +256,17 @@ func TestManager_Start_WhenGlobalLimitReached_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 
 	// Start 2 tasks (at limit)
-	t1 := m.Create("proj", "task1", PriorityNormal, 30)
+	t1 := m.Create("proj", "task1", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 0))
 
-	t2 := m.Create("proj", "task2", PriorityNormal, 30)
+	t2 := m.Create("proj", "task2", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 0))
 
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, 2, m.RunningCount())
 
 	// Third task should be rejected
-	t3 := m.Create("proj", "task3", PriorityNormal, 30)
+	t3 := m.Create("proj", "task3", "", PriorityNormal, 30)
 	err := m.Start(ctx, t3, executor.Request{TaskID: t3.ID, Prompt: "task3"}, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "global concurrency limit reached")
@@ -287,20 +287,20 @@ func TestManager_Start_WhenProjectLimitReached_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 
 	// Start 1 task on "alpha" (per-project limit will be 1)
-	t1 := m.Create("alpha", "task1", PriorityNormal, 30)
+	t1 := m.Create("alpha", "task1", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 1))
 
 	time.Sleep(50 * time.Millisecond)
 
 	// Second task on same project should be rejected
-	t2 := m.Create("alpha", "task2", PriorityNormal, 30)
+	t2 := m.Create("alpha", "task2", "", PriorityNormal, 30)
 	err := m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 	assert.Contains(t, err.Error(), "alpha")
 
 	// Different project should still work
-	t3 := m.Create("beta", "task3", PriorityNormal, 30)
+	t3 := m.Create("beta", "task3", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t3, executor.Request{TaskID: t3.ID, Prompt: "task3"}, 1))
 
 	// Cleanup
@@ -318,14 +318,14 @@ func TestManager_Start_WhenTaskCompletes_FreesSlot(t *testing.T) {
 	ctx := context.Background()
 
 	// Start and wait for completion
-	t1 := m.Create("proj", "task1", PriorityNormal, 30)
+	t1 := m.Create("proj", "task1", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t1, executor.Request{TaskID: t1.ID, Prompt: "task1"}, 0))
 	<-t1.Done()
 
 	assert.Equal(t, 0, m.RunningCount())
 
 	// Should be able to start another task now
-	t2 := m.Create("proj", "task2", PriorityNormal, 30)
+	t2 := m.Create("proj", "task2", "", PriorityNormal, 30)
 	require.NoError(t, m.Start(ctx, t2, executor.Request{TaskID: t2.ID, Prompt: "task2"}, 0))
 	<-t2.Done()
 

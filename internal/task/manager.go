@@ -64,8 +64,8 @@ func (m *Manager) SetNotifyFunc(fn NotifyFunc) {
 }
 
 // Create makes a new task and stores it.
-func (m *Manager) Create(project, prompt string, priority Priority, timeoutMinutes int) *Task {
-	t := New(project, prompt, priority, timeoutMinutes, m.maxOutputSize)
+func (m *Manager) Create(project, prompt, context string, priority Priority, timeoutMinutes int) *Task {
+	t := New(project, prompt, context, priority, timeoutMinutes, m.maxOutputSize)
 
 	m.mu.Lock()
 	m.tasks[t.ID] = t

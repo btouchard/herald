@@ -14,6 +14,7 @@
 - Messages de commit en anglais, concis, descriptifs. Exemple : `feat(executor): add stream-json output parsing`.
 - Avant de commit, toujours lancer `make lint` et `make test`. Ne commit que du code qui passe.
 - **Zero CGO**. Tout le code doit compiler avec `CGO_ENABLED=0`. C'est non négociable pour la cross-compilation et le déploiement en binaire unique.
+- **Au début d'une conversation sur le développement de Herald** : appeler `list_tasks` pour vérifier si des tâches sont en cours ou récentes, avant de supposer qu'aucun travail n'est en cours.
 
 ---
 

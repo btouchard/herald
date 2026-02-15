@@ -48,6 +48,8 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 			return mcp.NewToolResultError(fmt.Sprintf("prompt too large: %d bytes (max %d)", len(prompt), maxPromptSize)), nil
 		}
 
+		context, _ := args["context"].(string)
+
 		projectName, _ := args["project"].(string)
 		proj, err := pm.Resolve(projectName)
 		if err != nil {
@@ -80,7 +82,7 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 		}
 
 		// Create the task
-		t := tm.Create(proj.Name, prompt, priority, timeoutMinutes)
+		t := tm.Create(proj.Name, prompt, context, priority, timeoutMinutes)
 		t.GitBranch = gitBranch
 		t.DryRun = dryRun
 		t.Model = model
