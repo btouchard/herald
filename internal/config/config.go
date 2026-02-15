@@ -118,8 +118,8 @@ func Defaults() *Config {
 			},
 		},
 		RateLimit: RateLimitConfig{
-			RequestsPerMinute: 200,
-			Burst:             100,
+			RequestsPerMinute: 600,
+			Burst:             200,
 		},
 		Tunnel: TunnelConfig{
 			Enabled:  false,

@@ -22,7 +22,7 @@ func TestDefaults_SetsExpectedValues(t *testing.T) {
 	assert.Equal(t, "claude-sonnet-4-5-20250929", cfg.Execution.Model)
 	assert.Equal(t, 30*time.Minute, cfg.Execution.DefaultTimeout)
 	assert.Equal(t, 3, cfg.Execution.MaxConcurrent)
-	assert.Equal(t, 200, cfg.RateLimit.RequestsPerMinute)
+	assert.Equal(t, 600, cfg.RateLimit.RequestsPerMinute)
 	assert.Equal(t, time.Hour, cfg.Auth.AccessTokenTTL)
 	assert.Equal(t, 30*24*time.Hour, cfg.Auth.RefreshTokenTTL)
 }
