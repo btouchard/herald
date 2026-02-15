@@ -22,7 +22,7 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 			mcp.WithDescription("Start a Claude Code task on a project. Returns immediately with a task ID. The task runs asynchronously — use check_task to monitor progress. Tasks typically take 1-10 minutes. Use check_task with wait_seconds=30 to long-poll efficiently instead of polling rapidly."),
 			mcp.WithString("prompt",
 				mcp.Required(),
-				mcp.Description("The task instructions for Claude Code"),
+				mcp.Description("The task instructions for Claude Code. Send concise, functional requirements — describe WHAT to do, not HOW. Do NOT write code, file contents, or documentation here: Claude Code has the full codebase and will implement it. Think clear requirements, not code."),
 			),
 			mcp.WithString("context",
 				mcp.Description("Human-readable context explaining why this task was launched, for tracking across chat sessions"),
