@@ -19,7 +19,7 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 	// start_task — Launch a Claude Code task
 	s.AddTool(
 		mcp.NewTool("start_task",
-			mcp.WithDescription("Start a Claude Code task on a project. Returns immediately with a task ID. The task runs asynchronously — use check_task to monitor progress."),
+			mcp.WithDescription("Start a Claude Code task on a project. Returns immediately with a task ID. The task runs asynchronously — use check_task to monitor progress. Tasks typically take 1-10 minutes. Use check_task with wait_seconds=30 to long-poll efficiently instead of polling rapidly."),
 			mcp.WithString("prompt",
 				mcp.Required(),
 				mcp.Description("The task instructions for Claude Code"),
@@ -59,7 +59,7 @@ func registerTools(s *server.MCPServer, deps *Deps) {
 	// check_task — Check task status
 	s.AddTool(
 		mcp.NewTool("check_task",
-			mcp.WithDescription("Check the current status and progress of a running task. Supports long-polling with wait_seconds to reduce polling overhead."),
+			mcp.WithDescription("Check the current status and progress of a running task. Supports long-polling with wait_seconds to reduce polling overhead. IMPORTANT: Always use wait_seconds=30 to long-poll efficiently. This holds the connection server-side and returns immediately when the task status changes, avoiding wasteful rapid polling."),
 			mcp.WithString("task_id",
 				mcp.Required(),
 				mcp.Description("The task ID returned by start_task"),

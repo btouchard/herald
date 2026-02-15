@@ -14,7 +14,7 @@ import (
 
 const (
 	longPollInterval = 500 * time.Millisecond
-	longPollMaxWait  = 30
+	longPollMaxWait  = 60
 )
 
 // CheckTask returns a handler that reports a task's current status.
@@ -110,6 +110,7 @@ func formatCheckResponse(snap task.TaskSnapshot, includeOutput bool, outputLines
 		if snap.CostUSD > 0 {
 			fmt.Fprintf(&b, "Cost so far: ~$%.2f\n", snap.CostUSD)
 		}
+		b.WriteString("\nTip: Use wait_seconds=30 on next check_task call to long-poll efficiently. Do not poll faster than every 30 seconds.")
 
 	case task.StatusCompleted:
 		fmt.Fprintf(&b, "Status: completed\n")

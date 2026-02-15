@@ -146,7 +146,7 @@ func StartTask(tm *task.Manager, pm *project.Manager, defaultTimeout, maxTimeout
 			}
 		}
 
-		fmt.Fprintf(&b, "\nUse check_task with ID '%s' to monitor progress.", t.ID)
+		fmt.Fprintf(&b, "\nIMPORTANT: Use check_task with task_id=%q and wait_seconds=30. This long-polls server-side and returns instantly on status change — no need to poll repeatedly. Do NOT call check_task more than once every 30 seconds.", t.ID)
 
 		return mcp.NewToolResultText(b.String()), nil
 	}
