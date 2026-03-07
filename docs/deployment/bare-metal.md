@@ -43,10 +43,56 @@ screen -dmS herald herald serve
 herald serve
 ```
 
-!!! warning "systemd is not recommended"
-    Claude Code requires access to user-level authentication (OAuth tokens, API keys) stored in the user's home directory. When Herald launches Claude Code from a systemd service, these credentials are not available because systemd runs in a different session context. **Use standalone mode (tmux/screen) until this is resolved.**
+### systemd User Service (Recommended)
 
-### systemd Service (Experimental)
+Claude Code relies on user-level authentication tokens stored in your home directory. A **user-level systemd service** (`~/.config/systemd/user/`) inherits your environment, so Herald can access Claude Code credentials without any extra configuration.
+
+Create `~/.config/systemd/user/herald.service`:
+
+```ini
+[Unit]
+Description=Herald MCP Bridge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/herald serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+Enable and start:
+
+```bash
+# Enable linger so the service runs even when you're not logged in
+loginctl enable-linger $USER
+
+# Reload, enable and start
+systemctl --user daemon-reload
+systemctl --user enable --now herald
+
+# Check status
+systemctl --user status herald
+
+# View logs
+journalctl --user -u herald -f
+```
+
+!!! important "Linger is required"
+    Without `loginctl enable-linger`, user services stop when you log out. Enable it once and your Herald service will persist across sessions and reboots.
+
+!!! tip "Secret management"
+    The client secret is auto-generated and stored in `~/.config/herald/secret`. To rotate it, run `herald rotate-secret` and restart the service.
+
+### systemd System Service (Alternative — requires API key)
+
+A system-level service (`/etc/systemd/system/`) runs outside any user session. Claude Code's interactive OAuth tokens are **not available** in this context, so you must provide an `ANTHROPIC_API_KEY` instead.
+
+!!! warning "API billing"
+    Using an API key means Claude Code usage is billed through the Anthropic API, not through your Pro/Max subscription.
 
 Create `/etc/systemd/system/herald.service`:
 
@@ -62,6 +108,7 @@ Group=youruser
 ExecStart=/usr/local/bin/herald serve
 Restart=on-failure
 RestartSec=5
+EnvironmentFile=/etc/herald/env
 
 # Security hardening
 NoNewPrivileges=true
@@ -74,15 +121,19 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-!!! tip "Secret management"
-    The client secret is auto-generated and stored in `~/.config/herald/secret`. To rotate it, run `herald rotate-secret` and restart the service.
+Create `/etc/herald/env` with restricted permissions:
 
-### Enable and Start
+```bash
+sudo mkdir -p /etc/herald
+echo 'ANTHROPIC_API_KEY=sk-ant-...' | sudo tee /etc/herald/env
+sudo chmod 600 /etc/herald/env
+```
+
+Enable and start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable herald
-sudo systemctl start herald
+sudo systemctl enable --now herald
 
 # Check status
 sudo systemctl status herald
@@ -93,28 +144,18 @@ journalctl -u herald -f
 
 ## Log Rotation
 
-Herald logs to stdout by default. With systemd, logs go to the journal. For file-based logging, you can redirect:
+Herald logs to stdout by default. With systemd, logs go to the journal automatically.
 
-```ini
-StandardOutput=append:/var/log/herald/herald.log
-StandardError=append:/var/log/herald/error.log
+For the **user service**, view logs with:
+
+```bash
+journalctl --user -u herald -f
 ```
 
-Then configure logrotate at `/etc/logrotate.d/herald`:
+For the **system service**, view logs with:
 
-```
-/var/log/herald/*.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 0640 youruser youruser
-    postrotate
-        systemctl reload herald 2>/dev/null || true
-    endscript
-}
+```bash
+journalctl -u herald -f
 ```
 
 ## Verify
@@ -123,10 +164,12 @@ Then configure logrotate at `/etc/logrotate.d/herald`:
 # Health check
 curl http://127.0.0.1:8420/health
 
-# Check systemd status
-systemctl status herald
+# User service
+systemctl --user status herald
+journalctl --user -u herald -f --no-pager
 
-# Watch logs
+# System service
+sudo systemctl status herald
 journalctl -u herald -f --no-pager
 ```
 
@@ -161,5 +204,10 @@ cd herald
 git pull
 make build
 sudo cp bin/herald /usr/local/bin/herald
+
+# User service
+systemctl --user restart herald
+
+# Or system service
 sudo systemctl restart herald
 ```
